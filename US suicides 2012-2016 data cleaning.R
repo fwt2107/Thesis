@@ -22,6 +22,8 @@ usa_suicides <- usa_suicides[ , -1]
 colnames(usa_suicides) <- c('county', 'code', 'deaths', 'pop', 'crude_rate', 
                             'ci_low95', 'ci_up95', 'se')
 
+
+
 # Convert data from factors to numeric vectors for ease of use in analyses
 
 # Death counts
@@ -30,6 +32,7 @@ deaths_vector <- as.character(usa_suicides$deaths)
 suppressed_indexes <- which(grepl(pattern = "Suppressed", x = deaths_vector))
 deaths_vector[suppressed_indexes] <- NA
 deaths_vector <- as.numeric(deaths_vector)
+
 
 # Crude rates
 # Identify which values are unreliable and remove their labels
@@ -40,6 +43,7 @@ crude_rate_vector[unreliable_indexes] <- str_remove(
   string = crude_rate_vector[unreliable_indexes], pattern = " \\(Unreliable\\)")
 crude_rate_vector <- as.numeric(crude_rate_vector)
   
+
 # 95% CI and standard errors
 ci_low95_vector <- as.character(usa_suicides$ci_low95)
 ci_low95_vector[suppressed_indexes] <- NA
@@ -53,10 +57,35 @@ se_vector <- as.character(usa_suicides$se)
 se_vector[suppressed_indexes] <- NA
 se_vector <- as.numeric(se_vector)
 
+
 # Vectors for noting which entries are unreliable or surpressed
-supressed_vector <- rep.int(0, nrow(usa_suicides))
-supressed_vector[suppressed_indexes] <- 1
+suppressed_vector <- rep.int(0, nrow(usa_suicides))
+suppressed_vector[suppressed_indexes] <- 1
 
 unreliable_vector <- rep.int(0, nrow(usa_suicides))
 unreliable_vector[unreliable_indexes] <- 1
 
+
+
+# Create new tibble dataframe with the vectors and rename columns
+usa_suicides_tibble <- data_frame(
+  as.character(usa_suicides$county),
+  usa_suicides$code,
+  deaths_vector,
+  usa_suicides$pop,
+  crude_rate_vector,
+  ci_low95_vector,
+  ci_up95_vector,
+  se_vector,
+  suppressed_vector,
+  unreliable_vector
+)
+
+colnames(usa_suicides_tibble) <- c("county", "code", "deaths", "pop",
+                                   "crude_rate", "ci_low95", "ci_up95",
+                                   "se", "suppressed", "unreliable")
+
+# Ready to output the cleaned dataset. Waiting in case other changes need
+#  to be made
+# write.csv(x = usa_suicides_tibble, file = 
+#             "./Cleaned data/2012-2016 USA suicides by county")
