@@ -45,7 +45,7 @@ ci_low95_vector <- as.character(usa_suicides$ci_low95)
 ci_low95_vector[suppressed_indexes] <- NA
 ci_low95_vector <- as.numeric(ci_low95_vector)
 
-ci_up95_vector <- as.character(usa_suicides$ci_upper95)
+ci_up95_vector <- as.character(usa_suicides$ci_up95)
 ci_up95_vector[suppressed_indexes] <- NA
 ci_up95_vector <- as.numeric(ci_up95_vector)
 
@@ -53,4 +53,10 @@ se_vector <- as.character(usa_suicides$se)
 se_vector[suppressed_indexes] <- NA
 se_vector <- as.numeric(se_vector)
 
+# Vectors for noting which entries are unreliable or surpressed
+supressed_vector <- rep.int(0, nrow(usa_suicides))
+supressed_vector[suppressed_indexes] <- 1
+
+unreliable_vector <- rep.int(0, nrow(usa_suicides))
+unreliable_vector[unreliable_indexes] <- 1
 
