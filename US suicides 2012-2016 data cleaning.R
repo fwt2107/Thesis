@@ -9,7 +9,7 @@
 #      with only vectors (no factors) for ease of use during analyses
 
 library('tibble')
-
+library('stringr')
 
 # Read in dataset
 usa_suicides <- as.tibble(
@@ -22,35 +22,35 @@ usa_suicides <- usa_suicides[ , -1]
 colnames(usa_suicides) <- c('county', 'code', 'deaths', 'pop', 'crude_rate', 
                             'ci_low95', 'ci_up95', 'se')
 
+# Convert data from factors to numeric vectors for ease of use in analyses
 
-# Will be our vectors in the future tibble dataframe
-# Create variables to keep track of which values are suppressed/unreliable
-#  Data are suppressed if counts are less than 10(?), unreliable if < 20
-deaths_vector <- vector(mode = "numeric")
-crude_rate_vector <- vector(mode = "numeric")
-suppressed_vector <- vector()
-unreliable_vector <- vector()
+# Death counts
+# Identify suppressed values and convert to NA's
+deaths_vector <- as.character(usa_suicides$deaths)
+suppressed_indexes <- which(grepl(pattern = "Suppressed", x = deaths_vector))
+deaths_vector[suppressed_indexes] <- NA
+deaths_vector <- as.numeric(deaths_vector)
 
-# Go through the original dataframe to extract data
-for (i in 1:nrow(usa_suicides)) {
+# Crude rates
+# Identify which values are unreliable and remove their labels
+crude_rate_vector <- as.character(usa_suicides$crude_rate)
+unreliable_indexes <- which(grepl(pattern = " \\(Unreliable\\)", 
+                                  x = crude_rate_vector))
+crude_rate_vector[unreliable_indexes] <- str_remove(
+  string = crude_rate_vector[unreliable_indexes], pattern = " \\(Unreliable\\)")
+crude_rate_vector <- as.numeric(crude_rate_vector)
   
-  # Obtains death counts and transforms suppressed values into NA's
-  if (usa_suicides$deaths[i] == "Suppressed") {
-    deaths_vector[i] <- NA
-    suppressed_vector[i] <- 1
-  }
-  else
-    deaths_vector[i] <- as.numeric(usa_suicides$deaths[i])
-  
-  if (usa_suicides$crude_rate[i] == "Suppressed")
-    crude_rate_vector[i] <- NA
-  else if (grepl(pattern = "(Unreliable)", x = usa_suicides$crude_rate[i]))
-    crude_rate_vector[i] <- as.numeric(
-      str_remove(pattern = " \\(Unreliable\\)", 
-                 string = usa_suicides$crude_rate[i]))
-  
-  
-    
-}
+# 95% CI and standard errors
+ci_low95_vector <- as.character(usa_suicides$ci_low95)
+ci_low95_vector[suppressed_indexes] <- NA
+ci_low95_vector <- as.numeric(ci_low95_vector)
+
+ci_up95_vector <- as.character(usa_suicides$ci_upper95)
+ci_up95_vector[suppressed_indexes] <- NA
+ci_up95_vector <- as.numeric(ci_up95_vector)
+
+se_vector <- as.character(usa_suicides$se)
+se_vector[suppressed_indexes] <- NA
+se_vector <- as.numeric(se_vector)
 
 
