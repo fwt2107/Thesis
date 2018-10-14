@@ -1,0 +1,53 @@
+---
+title: "Data_cleaning"
+author: "Felix Tran"
+date: "October 14, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+```
+
+# CDC WONDER 
+Suicide rate by county data were retrieved from the CDC WONDER Compressed
+Mortality data and exported as a .txt file. Details about the options used when
+exporting the data are documented in "CDC wonder query criteria.docx".
+
+These are the steps I took to clean and process the data:
+
+1. The .txt file contained notes about the data at the end of the file. 
+These notes were deleted from the dataset, but they can be viewed in 
+"CDC wonder notes.docx".
+
+2. I changed some the variable names for the age-adjusted rate 95% CI and 
+standard error for ease of use.
+
+2. I created variables to note if the age-adjusted rate for a particular county
+was suppressed or unreliable and therefore unusable, or not.
+
+```{r}
+cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>% 
+  janitor::clean_names() %>% 
+  drop_na(county) %>% 
+  select(-notes) %>% 
+  select(age_adjusted_lower_ci = 
+           age_adjusted_rate_lower_95_percent_confidence_interval, 
+         age_adjusted_upper_ci = 
+           age_adjusted_rate_upper_95_percent_confidence_interval,
+         age_adjusted_se = 
+           age_adjusted_rate_standard_error,
+         everything()) %>% 
+  mutate(suppressed = if_else(deaths == "Suppressed", T, F),
+         unreliable = 
+           if_else(str_detect(age_adjusted_rate, "Unreliable"), T, F),
+         usable = !(suppressed | unreliable))
+
+usable_counties <- length(which(cdc_df$usable == T))
+cdc_df
+```
+
+After this initial process I am left with age-adjusted suicide rates for 
+`r usable_counties` counties.
