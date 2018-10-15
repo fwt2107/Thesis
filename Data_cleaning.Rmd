@@ -11,7 +11,7 @@ library(tidyverse)
 library(stringr)
 ```
 
-# CDC WONDER 
+# Outcome data - CDC WONDER
 Suicide rate by county data were retrieved from the CDC WONDER Compressed
 Mortality data and exported as a .txt file. Details about the options used when
 exporting the data are documented in "CDC wonder query criteria.docx".
@@ -40,14 +40,65 @@ cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>%
          age_adjusted_se = 
            age_adjusted_rate_standard_error,
          everything()) %>% 
+  separate(county, into = c('county', 'state'), sep = ",") %>% 
   mutate(suppressed = if_else(deaths == "Suppressed", T, F),
          unreliable = 
            if_else(str_detect(age_adjusted_rate, "Unreliable"), T, F),
          usable = !(suppressed | unreliable))
 
 usable_counties <- length(which(cdc_df$usable == T))
-cdc_df
 ```
 
 After this initial process I am left with age-adjusted suicide rates for 
 `r usable_counties` counties.
+
+Looking at the age-adjusted rates, the distribution of rates looks roughly
+normal?
+```{r}
+cdc_df %>% 
+  filter(usable == T) %>% 
+  mutate(age_adjusted_rate = as.double(age_adjusted_rate)) %>% 
+  ggplot(aes(x = age_adjusted_rate)) +
+  geom_histogram(binwidth = 0.5)
+```
+
+Plotting the log transformation of the distribution of rates looks roughly
+normal.
+```{r}
+cdc_df %>% 
+  filter(usable == T) %>% 
+  mutate(age_adjusted_rate = log(as.double(age_adjusted_rate))) %>% 
+  ggplot(aes(x = age_adjusted_rate)) +
+  geom_histogram(binwidth = 0.1)
+```
+
+
+# Exposure data - ACS 2012-2016 5-year estimates
+County-level income inequality was measured using a Gini coefficient and was
+retrieved from the American Community Survey 2012-2016 5-year estimates.
+
+These are the steps I took to clean and process this data:
+
+1. Removed an unneeded ID column
+
+2. Renamed variables for ease of use
+
+3. Created a new variable for state
+```{r}
+acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>% 
+  janitor::clean_names() %>% 
+  select(-id, 
+         county_code = id2, 
+         county = geography, 
+         gini = estimate_gini_index,
+         gini_moe = margin_of_error_gini_index) %>% 
+  separate(county, into = c('county', 'state'), sep = ',')
+```
+
+Looking at the distribution of gini coefficients across all counties
+```{r}
+acs_exp_df %>% 
+  ggplot(aes(gini)) + 
+  geom_histogram(binwidth = 0.001)
+```
+
