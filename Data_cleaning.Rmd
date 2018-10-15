@@ -22,7 +22,7 @@ These are the steps I took to clean and process the data:
 These notes were deleted from the dataset, but they can be viewed in 
 "CDC wonder notes.docx".
 
-2. I changed some the variable names for the age-adjusted rate 95% CI and 
+2. I changed the variable names for the age-adjusted rate 95% CI and 
 standard error for ease of use.
 
 2. I created variables to note if the age-adjusted rate for a particular county
@@ -73,6 +73,7 @@ cdc_df %>%
 ```
 
 
+
 # Exposure data - ACS 2012-2016 5-year estimates
 County-level income inequality was measured using a Gini coefficient and was
 retrieved from the American Community Survey 2012-2016 5-year estimates.
@@ -83,7 +84,7 @@ These are the steps I took to clean and process this data:
 
 2. Renamed variables for ease of use
 
-3. Created a new variable for state
+3. Created a new variable to separate county name and state
 ```{r}
 acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>% 
   janitor::clean_names() %>% 
@@ -100,5 +101,124 @@ Looking at the distribution of gini coefficients across all counties
 acs_exp_df %>% 
   ggplot(aes(gini)) + 
   geom_histogram(binwidth = 0.001)
+```
+
+
+# Covariates
+Covariates for this analysis are: race/ethnicity, gender, urban/ruralness, 
+educational attainment, and absolute income level.
+
+Studies and vital stats have shown that age-adjusted suicide rates differ based
+on these variables and thus should be adjusted for in analyses.
+
+## Urban/rural classification
+Urban/rural classification is determined by the NCHS. The NCHS most recently
+classified counties in 2013.
+
+These are the steps I took to clean the data:
+
+1. Keep only the county code, state, county name, and urban/rural classification
+
+2. Changed variable names for ease of use
+```{r}
+nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>% 
+  janitor::clean_names() %>%
+  select(county = county_name,
+         county_code = fips_code,
+         state = state_abr, 
+         urban_code = x2013_code)
+```
+
+
+## Mean and median household income
+Mean household income was collected from the ACS 2012-2016 5 year data.
+
+These are the steps I took to clean the data:
+
+1. Deleted the 1st row of the dataset which contains unneeded notes
+
+2. Only keep information for county code, county name, mean income and margin
+of error, and median income and margin of error.
+
+3. Separate state name from county name
+```{r}
+acs_income_df <- read_csv('./Raw data/ACS 2012-2016 Economics.csv')
+acs_income_df <- acs_income_df[-1, ]
+acs_income_df <- acs_income_df %>% 
+  janitor::clean_names() %>%
+  select(county_code = geo_id2,
+         county = geo_display_label,
+         mean_income = hc01_vc85,
+         mean_income_moe = hc02_vc85,
+         median_income = hc01_vc86,
+         median_income_moe = hc02_vc86) %>% 
+  separate(county, into = c('county', 'state'), sep = ',')
+```
+
+Exploratory analysis
+```{r}
+subset <- acs_income_df %>% 
+  select(county_code, mean_income, median_income)
+
+practice <- inner_join(acs_exp_df, subset, by = "county_code")
+practice %>% 
+  ggplot(aes(x = gini, y = as.integer(mean_income))) +
+  geom_point() +
+  geom_smooth()
+```
+
+
+## Educational attainment
+Educational attainment is operatioanlized as the proportion of the county
+population with a college education or greater. This was retrieved from the 
+ACS 2012-2016 5 year estimate data.
+
+These are the steps I took to clean the data:
+
+1. Only kept variables for the county code, % of total population with college
+education or higher, and the margin of error for the % of total population
+with college education or higher
+
+2. Remove an unneeded line of notes from the dataset
+```{r}
+edu_df <- read_csv('./Raw data/ACS 2012-2016 Education.csv') %>% 
+  janitor::clean_names() %>% 
+  select(county_code = geo_id2,
+         college_prop = hc02_est_vc18,
+         college_prop_moe = hc02_moe_vc18)
+edu_df <- edu_df[-1, ]
+```
+
+
+## Race/ethnicity and gender
+Race/ethnicity and gender were retrieved from the ACS 2012-2016 5 year estimate
+data. Studies and vital stats have indicated that whites have higher 
+age-adjusted rates of suicide compared to other racial/ethnic groups, and males
+have greater age-adjusted rates of suicide compared to females.
+
+These are the steps I took to clean the data:
+
+1. Only kept variables for county code, % of total population that identified
+as white, % of total population that is male, and the margins of error for
+both these estimates
+
+2. Removed a row of unneeded notes from the data
+```{r}
+gender_race_df <- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %>% 
+  janitor::clean_names() %>% 
+  select(county_code = geo_id2,
+         male_prop = hc03_vc04,
+         male_prop_moe = hc04_vc04,
+         white_prop = hc03_vc49,
+         white_prop_moe = hc04_vc49) 
+gender_race_df <- gender_race_df[-1, ]
+```
+
+
+# Mediator - Social capital
+Social capital was measured by ____.
+
+```{r}
+socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx')
 ```
 
