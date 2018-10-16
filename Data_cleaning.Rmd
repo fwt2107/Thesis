@@ -11,69 +11,6 @@ library(tidyverse)
 library(stringr)
 ```
 
-# Outcome data - CDC WONDER
-Suicide rate by county data were retrieved from the CDC WONDER Compressed
-Mortality data and exported as a .txt file. Details about the options used when
-exporting the data are documented in "CDC wonder query criteria.docx".
-
-These are the steps I took to clean and process the data:
-
-1. The .txt file contained notes about the data at the end of the file. 
-These notes were deleted from the dataset, but they can be viewed in 
-"CDC wonder notes.docx".
-
-2. I changed the variable names for the age-adjusted rate 95% CI and 
-standard error for ease of use.
-
-2. I created variables to note if the age-adjusted rate for a particular county
-was suppressed or unreliable and therefore unusable, or not.
-
-```{r}
-cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>% 
-  janitor::clean_names() %>% 
-  drop_na(county) %>% 
-  select(-notes) %>% 
-  select(age_adjusted_lower_ci = 
-           age_adjusted_rate_lower_95_percent_confidence_interval, 
-         age_adjusted_upper_ci = 
-           age_adjusted_rate_upper_95_percent_confidence_interval,
-         age_adjusted_se = 
-           age_adjusted_rate_standard_error,
-         everything()) %>% 
-  separate(county, into = c('county', 'state'), sep = ",") %>% 
-  mutate(suppressed = if_else(deaths == "Suppressed", T, F),
-         unreliable = 
-           if_else(str_detect(age_adjusted_rate, "Unreliable"), T, F),
-         usable = !(suppressed | unreliable))
-
-usable_counties <- length(which(cdc_df$usable == T))
-```
-
-After this initial process I am left with age-adjusted suicide rates for 
-`r usable_counties` counties.
-
-Looking at the age-adjusted rates, the distribution of rates looks roughly
-normal?
-```{r}
-cdc_df %>% 
-  filter(usable == T) %>% 
-  mutate(age_adjusted_rate = as.double(age_adjusted_rate)) %>% 
-  ggplot(aes(x = age_adjusted_rate)) +
-  geom_histogram(binwidth = 0.5)
-```
-
-Plotting the log transformation of the distribution of rates looks roughly
-normal.
-```{r}
-cdc_df %>% 
-  filter(usable == T) %>% 
-  mutate(age_adjusted_rate = log(as.double(age_adjusted_rate))) %>% 
-  ggplot(aes(x = age_adjusted_rate)) +
-  geom_histogram(binwidth = 0.1)
-```
-
-
-
 # Exposure data - ACS 2012-2016 5-year estimates
 County-level income inequality was measured using a Gini coefficient and was
 retrieved from the American Community Survey 2012-2016 5-year estimates.
@@ -104,9 +41,71 @@ acs_exp_df %>%
 ```
 
 
+
+
+# Outcome data - CDC WONDER
+Suicide rate by county data were retrieved from the CDC WONDER Compressed
+Mortality data and exported as a .txt file. Details about the options used when
+exporting the data are documented in "CDC wonder query criteria.docx".
+
+These are the steps I took to clean and process the data:
+
+1. The .txt file contained notes about the data at the end of the file. 
+These notes were deleted from the dataset, but they can be viewed in 
+"CDC wonder notes.docx".
+
+2. I created variables to note if the age-adjusted rate for a particular county
+was suppressed or unreliable and therefore unusable, or not.
+
+3. Filter out any counties with unreliable or suppressed rates.
+
+4. Changed the remaining variables to numeric, and changed the name of the 
+standard error variable for ease of use.
+```{r}
+cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>% 
+  janitor::clean_names() %>% 
+  drop_na(county) %>% 
+  select(-notes) %>% 
+  mutate(suppressed = if_else(deaths == "Suppressed", T, F),
+         unreliable = 
+           if_else(str_detect(age_adjusted_rate, "Unreliable"), T, F),
+         usable = !(suppressed | unreliable)) %>% 
+  filter(usable == T) %>% 
+  select(county_code, 
+         age_adjusted_rate, 
+         age_adjusted_se = age_adjusted_rate_standard_error) %>% 
+  mutate(county_code = as.integer(county_code),
+         age_adjusted_rate = as.numeric(age_adjusted_rate),
+         age_adjusted_se = as.numeric(age_adjusted_se))
+
+usable_counties <- nrow(cdc_df)
+```
+
+After this initial process I am left with age-adjusted suicide rates for 
+`r usable_counties` counties.
+
+Looking at the age-adjusted rates, the distribution of rates looks roughly
+normal?
+```{r}
+cdc_df %>% 
+  ggplot(aes(x = age_adjusted_rate)) +
+  geom_histogram(binwidth = 0.5)
+```
+
+Plotting the log transformation of the distribution of rates looks roughly
+normal.
+```{r}
+cdc_df %>% 
+  ggplot(aes(x = age_adjusted_rate)) +
+  geom_histogram(binwidth = 0.1)
+```
+
+
+
+
 # Covariates
-Covariates for this analysis are: race/ethnicity, gender, urban/ruralness, 
-educational attainment, and absolute income level.
+Covariates for this analysis are: race/ethnicity, gender, county 
+urban/ruralness, educational attainment, and absolute income level.
 
 Studies and vital stats have shown that age-adjusted suicide rates differ based
 on these variables and thus should be adjusted for in analyses.
@@ -117,17 +116,16 @@ classified counties in 2013.
 
 These are the steps I took to clean the data:
 
-1. Keep only the county code, state, county name, and urban/rural classification
+1. Keep only the county code and urban/rural classification
 
 2. Changed variable names for ease of use
 ```{r}
 nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>% 
   janitor::clean_names() %>%
-  select(county = county_name,
-         county_code = fips_code,
-         state = state_abr, 
-         urban_code = x2013_code)
+  select(county_code = fips_code,
+         urban_rural_code = x2013_code)
 ```
+
 
 
 ## Mean and median household income
@@ -139,20 +137,16 @@ These are the steps I took to clean the data:
 
 2. Only keep information for county code, county name, mean income and margin
 of error, and median income and margin of error.
-
-3. Separate state name from county name
 ```{r}
 acs_income_df <- read_csv('./Raw data/ACS 2012-2016 Economics.csv')
 acs_income_df <- acs_income_df[-1, ]
 acs_income_df <- acs_income_df %>% 
   janitor::clean_names() %>%
   select(county_code = geo_id2,
-         county = geo_display_label,
          mean_income = hc01_vc85,
          mean_income_moe = hc02_vc85,
          median_income = hc01_vc86,
-         median_income_moe = hc02_vc86) %>% 
-  separate(county, into = c('county', 'state'), sep = ',')
+         median_income_moe = hc02_vc86)
 ```
 
 Exploratory analysis
@@ -166,6 +160,7 @@ practice %>%
   geom_point() +
   geom_smooth()
 ```
+
 
 
 ## Educational attainment
@@ -188,6 +183,7 @@ edu_df <- read_csv('./Raw data/ACS 2012-2016 Education.csv') %>%
          college_prop_moe = hc02_moe_vc18)
 edu_df <- edu_df[-1, ]
 ```
+
 
 
 ## Race/ethnicity and gender
@@ -215,10 +211,32 @@ gender_race_df <- gender_race_df[-1, ]
 ```
 
 
+
+
 # Mediator - Social capital
 Social capital was measured by ____.
 
 ```{r}
 socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx')
+```
+
+
+
+
+# Combining datasets
+This section combines all the datasets into 1 cohesive dataset containing all
+exposure, outcome, covariate, and mediator information.
+
+The Federal Information Processing Standard Publication 6-4 is a 5-digit code 
+used to identify counties/county equivalents in the US. Datasets will be 
+merged by this county code.
+
+```{r}
+final_df <- inner_join(acs_exp_df, cdc_df, by = "county_code") %>% 
+  inner_join(., acs_income_df, by = "county_code") %>% 
+  inner_join(., nchs_df, by = "county_code") %>% 
+  inner_join(., edu_df, by = "county_code") %>% 
+  inner_join(., socialcap_df, by = "county_code") %>% 
+  inner_join(., gender_race_df, by = "county_code")
 ```
 
