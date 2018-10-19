@@ -62,6 +62,13 @@ was suppressed or unreliable and therefore unusable, or not.
 4. Changed the remaining variables to numeric, and changed the name of the 
 standard error variable for ease of use.
 ```{r}
+clean_rates <- function(x) {
+  unusable <- which(str_detect(x, "Unreliable") | 
+                      str_detect(x, "Suppressed"))
+  x[unusable] <- NA
+  x
+}
+
 cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>% 
   janitor::clean_names() %>% 
   drop_na(county) %>% 
@@ -70,15 +77,20 @@ cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>%
          unreliable = 
            if_else(str_detect(age_adjusted_rate, "Unreliable"), T, F),
          usable = !(suppressed | unreliable)) %>% 
-  filter(usable == T) %>% 
   select(county_code, 
          age_adjusted_rate, 
-         age_adjusted_se = age_adjusted_rate_standard_error) %>% 
+         age_adjusted_se = age_adjusted_rate_standard_error,
+         suppressed,
+         unreliable,
+         usable) %>% 
+  mutate(age_adjusted_rate = clean_rates(age_adjusted_rate)) %>% 
   mutate(county_code = as.integer(county_code),
          age_adjusted_rate = as.numeric(age_adjusted_rate),
          age_adjusted_se = as.numeric(age_adjusted_se))
 
-usable_counties <- nrow(cdc_df)
+usable_counties <- length(which(cdc_df$usable))
+suppressed_counties <- length(which(cdc_df$suppressed))
+unreliable_counties <- length(which(cdc_df$unreliable))
 ```
 
 After this initial process I am left with age-adjusted suicide rates for 
