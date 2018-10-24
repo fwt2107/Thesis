@@ -30,7 +30,8 @@ acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>%
          county = geography, 
          gini = estimate_gini_index,
          gini_moe = margin_of_error_gini_index) %>% 
-  separate(county, into = c('county', 'state'), sep = ',')
+  separate(county, into = c('county', 'state'), sep = ',') %>% 
+  mutate(county_code = as.integer(county_code))
 ```
 
 Looking at the distribution of gini coefficients across all counties
@@ -135,7 +136,8 @@ These are the steps I took to clean the data:
 nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>% 
   janitor::clean_names() %>%
   select(county_code = fips_code,
-         urban_rural_code = x2013_code)
+         urban_rural_code = x2013_code) %>% 
+  mutate(county_code = as.integer(county_code))
 ```
 
 
@@ -158,7 +160,8 @@ acs_income_df <- acs_income_df %>%
          mean_income = hc01_vc85,
          mean_income_moe = hc02_vc85,
          median_income = hc01_vc86,
-         median_income_moe = hc02_vc86)
+         median_income_moe = hc02_vc86) %>% 
+  mutate(county_code = as.integer(county_code))
 ```
 
 Exploratory analysis
@@ -192,7 +195,8 @@ edu_df <- read_csv('./Raw data/ACS 2012-2016 Education.csv') %>%
   janitor::clean_names() %>% 
   select(county_code = geo_id2,
          college_prop = hc02_est_vc18,
-         college_prop_moe = hc02_moe_vc18)
+         college_prop_moe = hc02_moe_vc18) %>% 
+  mutate(county_code = as.integer(county_code))
 edu_df <- edu_df[-1, ]
 ```
 
@@ -200,9 +204,9 @@ edu_df <- edu_df[-1, ]
 
 ## Race/ethnicity and gender
 Race/ethnicity and gender were retrieved from the ACS 2012-2016 5 year estimate
-data. Studies and vital stats have indicated that whites have higher 
-age-adjusted rates of suicide compared to other racial/ethnic groups, and males
-have greater age-adjusted rates of suicide compared to females.
+data. Studies and vital stats have indicated that non-Hispanic whites have 
+higher age-adjusted rates of suicide compared to other racial/ethnic groups, and
+males have greater age-adjusted rates of suicide compared to females.
 
 These are the steps I took to clean the data:
 
@@ -217,8 +221,9 @@ gender_race_df <- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %>%
   select(county_code = geo_id2,
          male_prop = hc03_vc04,
          male_prop_moe = hc04_vc04,
-         white_prop = hc03_vc49,
-         white_prop_moe = hc04_vc49) 
+         white_prop = hc03_vc94,
+         white_prop_moe = hc04_vc94) %>% 
+  mutate(county_code = as.integer(county_code))
 gender_race_df <- gender_race_df[-1, ]
 ```
 
@@ -229,7 +234,9 @@ gender_race_df <- gender_race_df[-1, ]
 Social capital was measured by ____.
 
 ```{r}
-socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx')
+socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx') %>% 
+  janitor::clean_names() %>% 
+  mutate(county_code = as.integer(fips))
 ```
 
 
@@ -243,12 +250,37 @@ The Federal Information Processing Standard Publication 6-4 is a 5-digit code
 used to identify counties/county equivalents in the US. Datasets will be 
 merged by this county code.
 
+Will have to convert FIPS codes to integers
 ```{r}
-final_df <- inner_join(acs_exp_df, cdc_df, by = "county_code") %>% 
-  inner_join(., acs_income_df, by = "county_code") %>% 
-  inner_join(., nchs_df, by = "county_code") %>% 
-  inner_join(., edu_df, by = "county_code") %>% 
-  inner_join(., socialcap_df, by = "county_code") %>% 
-  inner_join(., gender_race_df, by = "county_code")
+head(acs_exp_df)
+head(cdc_df)
+head(edu_df)
+head(gender_race_df)
+head(nchs_df)
+head(socialcap_df)
+```
+
+
+
+```{r}
+final_df <- left_join(acs_exp_df, cdc_df, by = "county_code") %>% 
+  left_join(., acs_income_df, by = "county_code") %>% 
+  left_join(., nchs_df, by = "county_code") %>% 
+  left_join(., edu_df, by = "county_code") %>% 
+  left_join(., socialcap_df, by = "county_code") %>% 
+  left_join(., gender_race_df, by = "county_code")
+```
+
+
+# Exploring which states and counties are represented in final dataset
+```{r}
+excluded_df <- final_df %>% 
+  group_by(state) %>% 
+  summarize(n_counties = n(),
+            n_excluded = sum(usable == F, na.rm = T),
+            prop_missing = round(n_excluded / n_counties, digits = 2))
+
+sum(excluded_df$n_excluded)
+
 ```
 
