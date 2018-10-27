@@ -160,7 +160,9 @@ acs_income_df <- acs_income_df %>%
          mean_income = hc01_vc85,
          mean_income_moe = hc02_vc85,
          median_income = hc01_vc86,
-         median_income_moe = hc02_vc86) %>% 
+         median_income_moe = hc02_vc86,
+         poverty_prop = hc03_vc171,
+         poverty_prop_moe = hc04_vc171) %>% 
   mutate(county_code = as.integer(county_code))
 ```
 
@@ -222,7 +224,9 @@ gender_race_df <- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %>%
          male_prop = hc03_vc04,
          male_prop_moe = hc04_vc04,
          white_prop = hc03_vc94,
-         white_prop_moe = hc04_vc94) %>% 
+         white_prop_moe = hc04_vc94,
+         geriatric_prop = hc03_vc29,
+         geriatric_prop_moe = hc04_vc29) %>% 
   mutate(county_code = as.integer(county_code))
 gender_race_df <- gender_race_df[-1, ]
 ```
