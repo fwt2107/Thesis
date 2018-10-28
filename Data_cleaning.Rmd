@@ -3,6 +3,8 @@ title: "Data_cleaning"
 author: "Felix Tran"
 date: "October 14, 2018"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -10,6 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(stringr)
 ```
+
+This file documents all the data cleaning and processing for my thesis. Data
+from 4 different sources were used. The data are categorized as 1 of 4 kinds -
+exposure data, outcome data, covariate data, or mediator data.
 
 # Exposure data - ACS 2012-2016 5-year estimates
 County-level income inequality was measured using a Gini coefficient and was
@@ -22,7 +28,7 @@ These are the steps I took to clean and process this data:
 2. Renamed variables for ease of use
 
 3. Created a new variable to separate county name and state
-```{r}
+```{r exposure data}
 acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>% 
   janitor::clean_names() %>% 
   select(-id, 
@@ -32,13 +38,6 @@ acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>%
          gini_moe = margin_of_error_gini_index) %>% 
   separate(county, into = c('county', 'state'), sep = ',') %>% 
   mutate(county_code = as.integer(county_code))
-```
-
-Looking at the distribution of gini coefficients across all counties
-```{r}
-acs_exp_df %>% 
-  ggplot(aes(gini)) + 
-  geom_histogram(binwidth = 0.001)
 ```
 
 
@@ -51,18 +50,18 @@ exporting the data are documented in "CDC wonder query criteria.docx".
 
 These are the steps I took to clean and process the data:
 
-1. The .txt file contained notes about the data at the end of the file. 
+1. Wrote a function to replace suppressed or unreliable rates with NA's
+
+2. The .txt file contained notes about the data at the end of the file. 
 These notes were deleted from the dataset, but they can be viewed in 
 "CDC wonder notes.docx".
 
-2. I created variables to note if the age-adjusted rate for a particular county
+3. I created variables to note if the age-adjusted rate for a particular county
 was suppressed or unreliable and therefore unusable, or not.
 
-3. Filter out any counties with unreliable or suppressed rates.
-
-4. Changed the remaining variables to numeric, and changed the name of the 
-standard error variable for ease of use.
-```{r}
+4. Converted the usable age-adjusted rates into numeric, and changed the name of
+the standard error variable for ease of use.
+```{r outcome data}
 clean_rates <- function(x) {
   unusable <- which(str_detect(x, "Unreliable") | 
                       str_detect(x, "Suppressed"))
@@ -97,33 +96,18 @@ unreliable_counties <- length(which(cdc_df$unreliable))
 After this initial process I am left with age-adjusted suicide rates for 
 `r usable_counties` counties.
 
-Looking at the age-adjusted rates, the distribution of rates looks roughly
-normal?
-```{r}
-cdc_df %>% 
-  ggplot(aes(x = age_adjusted_rate)) +
-  geom_histogram(binwidth = 0.5)
-```
-
-Plotting the log transformation of the distribution of rates looks roughly
-normal.
-```{r}
-cdc_df %>% 
-  ggplot(aes(x = age_adjusted_rate)) +
-  geom_histogram(binwidth = 0.1)
-```
-
 
 
 
 # Covariates
 Covariates for this analysis are: race/ethnicity, gender, county 
-urban/ruralness, educational attainment, and absolute income level.
+urban/ruralness, educational attainment, age, absolute income level, and 
+poverty.
 
 Studies and vital stats have shown that age-adjusted suicide rates differ based
 on these variables and thus should be adjusted for in analyses.
 
-## Urban/rural classification
+### Urban/rural classification
 Urban/rural classification is determined by the NCHS. The NCHS most recently
 classified counties in 2013.
 
@@ -132,7 +116,7 @@ These are the steps I took to clean the data:
 1. Keep only the county code and urban/rural classification
 
 2. Changed variable names for ease of use
-```{r}
+```{r covariate urban/rural}
 nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>% 
   janitor::clean_names() %>%
   select(county_code = fips_code,
@@ -141,17 +125,17 @@ nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>%
 ```
 
 
-
-## Mean and median household income
-Mean household income was collected from the ACS 2012-2016 5 year data.
+### Mean and median household income
+Mean and median household income was collected from the ACS 2012-2016 5 year 
+data.
 
 These are the steps I took to clean the data:
 
 1. Deleted the 1st row of the dataset which contains unneeded notes
 
 2. Only keep information for county code, county name, mean income and margin
-of error, and median income and margin of error.
-```{r}
+of error, median income and margin of error, and poverty and margin of error.
+```{r covariate absolute income/poverty}
 acs_income_df <- read_csv('./Raw data/ACS 2012-2016 Economics.csv')
 acs_income_df <- acs_income_df[-1, ]
 acs_income_df <- acs_income_df %>% 
@@ -166,21 +150,8 @@ acs_income_df <- acs_income_df %>%
   mutate(county_code = as.integer(county_code))
 ```
 
-Exploratory analysis
-```{r}
-subset <- acs_income_df %>% 
-  select(county_code, mean_income, median_income)
 
-practice <- inner_join(acs_exp_df, subset, by = "county_code")
-practice %>% 
-  ggplot(aes(x = gini, y = as.integer(mean_income))) +
-  geom_point() +
-  geom_smooth()
-```
-
-
-
-## Educational attainment
+### Educational attainment
 Educational attainment is operatioanlized as the proportion of the county
 population with a college education or greater. This was retrieved from the 
 ACS 2012-2016 5 year estimate data.
@@ -192,7 +163,7 @@ education or higher, and the margin of error for the % of total population
 with college education or higher
 
 2. Remove an unneeded line of notes from the dataset
-```{r}
+```{r covariate education}
 edu_df <- read_csv('./Raw data/ACS 2012-2016 Education.csv') %>% 
   janitor::clean_names() %>% 
   select(county_code = geo_id2,
@@ -203,21 +174,22 @@ edu_df <- edu_df[-1, ]
 ```
 
 
-
-## Race/ethnicity and gender
-Race/ethnicity and gender were retrieved from the ACS 2012-2016 5 year estimate
-data. Studies and vital stats have indicated that non-Hispanic whites have 
-higher age-adjusted rates of suicide compared to other racial/ethnic groups, and
-males have greater age-adjusted rates of suicide compared to females.
+### Race/ethnicity and gender
+Race/ethnicity, gender, and age were retrieved from the ACS 2012-2016 5 year 
+estimate data. Studies and vital stats have indicated that non-Hispanic whites 
+have higher age-adjusted rates of suicide compared to other racial/ethnic
+groups, males have greater age-adjusted rates of suicide compared to females,
+and the elderly (65 years and older) have greater rates of suicide compared to
+other age groups.
 
 These are the steps I took to clean the data:
 
 1. Only kept variables for county code, % of total population that identified
-as white, % of total population that is male, and the margins of error for
-both these estimates
+as white, % of total population that is male, % of total population that is 65
+years and older, and the margins of error for these estimates
 
 2. Removed a row of unneeded notes from the data
-```{r}
+```{r covariate gender/race/age}
 gender_race_df <- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %>% 
   janitor::clean_names() %>% 
   select(county_code = geo_id2,
@@ -235,9 +207,8 @@ gender_race_df <- gender_race_df[-1, ]
 
 
 # Mediator - Social capital
-Social capital was measured by ____.
-
-```{r}
+Social capital was measured by the method described in Rupasingha et al (2006).
+```{r mediator data}
 socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx') %>% 
   janitor::clean_names() %>% 
   mutate(county_code = as.integer(fips))
@@ -253,20 +224,7 @@ exposure, outcome, covariate, and mediator information.
 The Federal Information Processing Standard Publication 6-4 is a 5-digit code 
 used to identify counties/county equivalents in the US. Datasets will be 
 merged by this county code.
-
-Will have to convert FIPS codes to integers
-```{r}
-head(acs_exp_df)
-head(cdc_df)
-head(edu_df)
-head(gender_race_df)
-head(nchs_df)
-head(socialcap_df)
-```
-
-
-
-```{r}
+```{r merge datasets}
 final_df <- left_join(acs_exp_df, cdc_df, by = "county_code") %>% 
   left_join(., acs_income_df, by = "county_code") %>% 
   left_join(., nchs_df, by = "county_code") %>% 
@@ -275,16 +233,9 @@ final_df <- left_join(acs_exp_df, cdc_df, by = "county_code") %>%
   left_join(., gender_race_df, by = "county_code")
 ```
 
-
-# Exploring which states and counties are represented in final dataset
-```{r}
-excluded_df <- final_df %>% 
-  group_by(state) %>% 
-  summarize(n_counties = n(),
-            n_excluded = sum(usable == F, na.rm = T),
-            prop_missing = round(n_excluded / n_counties, digits = 2))
-
-sum(excluded_df$n_excluded)
-
+I then saved the final dataset as a csv file for future analyses.
+```{r save final dataset}
+write_csv(final_df, path = "./Cleaned data/final_df.csv")
 ```
+
 
