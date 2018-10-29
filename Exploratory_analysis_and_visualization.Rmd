@@ -1,0 +1,178 @@
+---
+title: "Exploratory_analysis_and_visualization"
+author: "Felix Tran"
+date: "October 27, 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggridges)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(broom)
+library(RColorBrewer)
+library(gridExtra)
+```
+
+This file contains all exploratory and visualization analyses done before any
+formal statistical testing. 
+
+# Loading the dataset
+Loads the final dataset created from the data_cleaning file.
+```{r loading dataset}
+final_df <- readr::read_csv('./Cleaned data/final_df.csv')
+```
+
+
+
+# Exposure data - Visualization
+Looking at the distribution of gini coefficients across all counties
+```{r}
+acs_exp_df %>% 
+  ggplot(aes(gini)) + 
+  geom_histogram(binwidth = 0.001)
+```
+
+
+# Outcome data - Visualization and summary stats
+1 assumption of linear regression is that the residuals/error terms are normally
+distributed. This assumption would be violated if the distribution of
+age-adjusted suicide rates is not normally distributed. Therefore checking the
+distribution of the included outcome data is important.
+
+### Plotting
+1. First we get summary statistics from the usable rates
+
+2. Then we compare the distribution of suicide rates with a hypothetical set of
+rates drawn from a normal distribution with the same mean and sd as the actual
+data
+```{r outcome}
+summary(age_adjusted_rate)
+summary_stats <- final_df %>% 
+  summarize(mean = mean(age_adjusted_rate, na.rm = T),
+            sd = sd(age_adjusted_rate, na.rm = T))
+
+set.seed(23)
+usable_num <- length(which(final_df$usable == T))
+normal_df <- tibble(
+  observation = c(1:usable_num),
+  rates = rnorm(usable_num, summary_stats$mean, summary_stats$sd)) 
+
+normal_df %>% 
+  ggplot(aes(x = rates)) +
+  geom_density(color = 'red')
+
+ggplot() +
+  geom_density(data = final_df, aes(x = age_adjusted_rate), color = 'blue',
+               alpha = 0.5) +
+  geom_density(data = normal_df, aes(x = rates), color = 'red')
+
+ggplot(data = final_df, aes(x = age_adjusted_rate)) +
+  geom_histogram(binwidth = 1)
+```
+
+Plotting the log transformation of the distribution of rates looks roughly
+normal.
+```{r}
+final_df %>% 
+  ggplot(aes(x = log(age_adjusted_rate))) +
+  geom_histogram(binwidth = 0.1)
+```
+
+
+### Exploring which states and counties are represented in final dataset
+```{r}
+excluded_df <- final_df %>% 
+  group_by(state) %>% 
+  summarize(n_counties = n(),
+            n_excluded = sum(usable == F, na.rm = T),
+            prop_missing = round(n_excluded / n_counties, digits = 2)) %>% 
+  arrange(prop_missing)
+
+sum(excluded_df$n_excluded)
+```
+
+# Covariate data - exploration
+Exploratory analysis
+```{r}
+subset <- acs_income_df %>% 
+  select(county_code, mean_income, median_income)
+
+practice <- inner_join(acs_exp_df, subset, by = "county_code")
+practice %>% 
+  ggplot(aes(x = gini, y = as.integer(mean_income))) +
+  geom_point() +
+  geom_smooth()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Plot of counties with usable suicide rates
+Read in the shp file for US counties
+```{r}
+usa_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+
+head(usa_map@data)
+```
+
+1. Convert the FIPS code into numeric type to allow merging with final_df.
+
+2. Merge map file with final_df
+
+3. Grab ID's of each polygon in map file and retain them so we can merge
+map data with the tidied map dataset
+
+4. Plot
+```{r}
+usa_map@data$GEOID <- as.numeric(as.character(usa_map@data$GEOID))
+
+usa_map_merged <- merge(usa_map, final_df, by.x = 'GEOID', by.y = 'county_code')
+
+usa_map_merged$id <- sapply(slot(usa_map_merged,  "polygons"), 
+                           function(x) slot(x, "ID"))
+
+usa_map_tidied <- tidy(usa_map_merged)
+
+usa_map_tidied <- merge(usa_map_tidied, usa_map_merged@data, by = "id", 
+                        all.x = T)
+
+
+```
+
+
+```{r}
+ggplot() +
+  geom_polygon(data = usa_map_tidied,
+               aes(x = long, 
+                   y = lat,
+                   group = group,
+                   fill = usable),
+               color = 'black') +
+  scale_fill_discrete(c('red', 'blue')) +
+  labs(title = 'USA counties and suicide rates',
+       fill = 'Usable suicide rate') +
+  theme_void() 
+
+counties_plot
+# ggsave('USA counties.jpg', counties_plot)  
+
+```
+
