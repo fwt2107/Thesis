@@ -211,7 +211,8 @@ Social capital was measured by the method described in Rupasingha et al (2006).
 ```{r mediator data}
 socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx') %>% 
   janitor::clean_names() %>% 
-  mutate(county_code = as.integer(fips))
+  mutate(county_code = as.integer(fips)) %>% 
+  select(-fips)
 ```
 
 
