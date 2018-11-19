@@ -1,0 +1,107 @@
+---
+title: "Mapping"
+author: "Felix Tran"
+date: "November 19, 2018"
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggridges)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(broom)
+library(RColorBrewer)
+library(gridExtra)
+```
+
+This file contains code to generate maps of the distribution of the variables
+used in my thesis. 
+
+# Plot of counties with usable suicide rates
+
+Read in the shp file for US counties and the thesis dataset
+```{r}
+usa_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+
+head(usa_map@data)
+
+final_df <- readr::read_csv('./Cleaned data/final_df.csv')
+```
+
+1. Convert the FIPS code into numeric type to allow merging with final_df.
+
+2. Merge map file with final_df
+
+3. Grab ID's of each polygon in map file and retain them so we can merge
+map data with the tidied map dataset
+
+4. Remove observations beyond a certain longitude and latitude (not sure what 
+these are but they are definitely not part of the 50 U.S. states). Also filter
+out observations for Puerto Rico.
+
+5. Plot
+```{r}
+usa_map@data$GEOID <- as.numeric(as.character(usa_map@data$GEOID))
+
+usa_map_merged <- merge(usa_map, final_df, by.x = 'GEOID', by.y = 'county_code')
+
+usa_map_merged$id <- sapply(slot(usa_map_merged,  "polygons"),
+                           function(x) slot(x, "ID"))
+
+usa_map_tidied <- tidy(usa_map_merged)
+
+usa_map_tidied <- merge(usa_map_tidied, usa_map_merged@data, by = "id",
+                        all.x = T)
+
+usa_map_tidied <- usa_map_tidied %>% 
+  filter(long < 0 & lat > 12) %>% 
+  filter(!(lat < 20 & long > -75))
+```
+
+##### Plot of counties with usable rates vs. unusable rates
+```{r}
+ggplot() +
+  geom_polygon(data = usa_map_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group,
+                   fill = usable),
+               color = 'black') +
+  scale_fill_discrete(c('red', 'blue')) +
+  labs(title = 'USA counties and suicide rates',
+       fill = 'Usable suicide rate') +
+  theme_void()
+
+# counties_plot
+# ggsave('USA counties.jpg', counties_plot)
+```
+
+##### Plot showing distribution of age-adjusted suicide rates
+```{r}
+ggplot() +
+  geom_polygon(data = usa_map_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group,
+                   fill = age_adjusted_rate),
+               color = 'black') +
+  labs(title = 'USA counties and suicide rates') 
+```
+
+##### Plot of distribution of age-adjusted suicide rates in the 48 contiguous
+##### states and DC
+```{r}
+usa_map_tidied %>% 
+  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
+  geom_polygon(color = 'black')
+```
+
