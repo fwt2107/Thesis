@@ -150,3 +150,59 @@ ggplot() +
   labs(title = "Histogram of usable age-adjusted suicide rates 
 against a hypothetical normal curve")
 ```
+
+# Plotting covariates and outcome
+
+Creating plots of covariates by outcome to see if any covariates should be
+transformed or recoded for the linear regression model
+```{r}
+final_df <- final_df %>% 
+  filter(usable == T) %>% 
+  select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
+         college_prop, poverty_prop, urban_rural_code)
+
+# Sex
+ggplot(data = final_df, aes(x = male_prop, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+
+# Race
+ggplot(data = final_df, aes(x = white_prop, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+
+# Education
+ggplot(data = final_df, aes(x = college_prop, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+
+# Age
+ggplot(data = final_df, aes(x = geriatric_prop, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+
+# Poverty
+ggplot(data = final_df, aes(x = poverty_prop, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+
+# Urban-rural code
+final_df %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  ggplot(aes(x = urban_rural_code, y = age_adjusted_rate)) +
+  geom_boxplot()
+
+# Urba-rural (collapsed into 3 categories)
+final_df %>% 
+  mutate(urban_rural_recoded = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_recoded = as.factor(urban_rural_recoded)) %>%
+  ggplot(aes(x = urban_rural_recoded, y = age_adjusted_rate)) +
+  geom_boxplot()
+```
+
+The graphs of the crude relationships between each covariate and suicide rates
+are overall in line with my expectations. For all the covarites, there are a
+handful of outliers, but I feel the association as a whole won't be changed
+by these outliers. Asides from collapsing urban_rural_code into 3 categories
+since 1 category has very few observations compared to the rest, I won't
+transform the covariates.
