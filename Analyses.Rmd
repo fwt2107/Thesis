@@ -1,0 +1,105 @@
+---
+title: "Analyses"
+author: "Felix Tran"
+date: "December 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+```
+
+This file contains code for running statistical analyses
+
+# Data import
+
+Read in the dataset and only look at counties with usable suicide rates
+```{r}
+final_df <- readr::read_csv('./Cleaned data/final_df.csv') %>% 
+  filter(usable == T) %>% 
+  mutate(gini_transformed = gini * 100)
+```
+
+# OLS Regression
+
+### Crude model - exposure and outcome only
+Starting with a simple ordinary least squares (OLS) linear regression modeling
+the relation between age-adjusted suicide rates and income inequality as 
+measured by the gini coefficient among US counties
+```{r}
+crude_model <- lm(data = final_df, age_adjusted_rate ~ gini) %>% 
+  broom::tidy() %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         std.error = round(std.error, digits = 2),
+         statistic = round(statistic, digits = 2),
+         p.value = round(p.value, digits = 2)) %>% 
+  mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
+         upper_ci = round(estimate + 1.96*std.error, digits = 2),
+         ci = str_c(lower_ci, upper_ci, sep = ", "))
+```
+
+```{r}
+final_df %>% 
+  ggplot(aes(x = gini, y = age_adjusted_rate)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(alpha = 0.75)
+```
+
+### Models with each covariate to assess confounding
+```{r}
+ols_reg <- function(df) {
+  result = lm(data = df, df[ , 2] ~ df[ , 1] + df[, 3])
+  result = result %>% 
+    broom::tidy() %>% 
+    mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
+           upper_ci = round(estimate + 1.96*std.error, digits = 2),
+           ci = str_c(lower_ci, upper_ci, sep = ", "))
+  result
+}
+
+create_model <- function(covariate_index) {
+  cbind(final_df$gini, final_df$age_adjusted_rate, final_df[, covariate_index])
+}
+
+final_df <- final_df %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
+         college_prop, poverty_prop, urban_rural_code)
+
+ols_reg_results <- tibble(
+  model = map(3:8, create_model),
+  name = c('sex', 'race', 'age', 'education', 'poverty', 'urban_rural'),
+  output = map(model, ols_reg)
+)
+
+results_table <- rbindlist(ols_reg_results$output) %>% 
+  mutate(term = if_else(term == "df[, 1]", "gini", term)) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         std.error = round(std.error, digits = 2),
+         statistic = round(statistic, digits = 2),
+         p.value = round(p.value, digits = 2))
+
+model_terms <- c('sex', 'race', 'age', 'education', 'poverty',
+                 'urban_rural (in-between)', 'urban_rural (rural)')
+i.2 <- 1
+
+for (i in 1:nrow(results_table)) {
+  if (str_detect(results_table$term[i], pattern = "df") ==  T) {
+    results_table$term[i] <- model_terms[i.2]
+    i.2 <- i.2 + 1
+  }
+}
+
+results_table <- rbind(crude_model, results_table) %>% 
+  mutate(estimate = round(estimate, digits = 2),
+         std.error = round(std.error, digits = 2),
+         statistic = round(statistic, digits = 2),
+         p.value = round(p.value, digits = 2))
+
+write_csv(results_table, path = './Tables/Model fitting results.csv')
+```
+
