@@ -1,0 +1,88 @@
+---
+title: "Descriptive_statistics"
+author: "Felix Tran"
+date: "December 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+```
+
+This file contains code for obtaining descriptive statistics for the variables
+used in analyses
+
+# Function to calculate descriptive statistics
+
+The function calculates the mean, standard deviation, min, and max values for 
+a given variable.
+```{r}
+descriptive_stats <- function(var_col) {
+  stats_tibble = tibble(
+    mean = mean(var_col),
+    std_dev = sd(var_col),
+    min = min(var_col),
+    max = max(var_col),
+    range = str_c(min, max, sep = " - ")
+  )
+  
+  stats_tibble
+}
+```
+
+# Data import
+
+```{r}
+final_df <- readr::read_csv('./Cleaned data/final_df.csv') %>% 
+  filter(usable == T) %>% 
+  select(urban_rural_code,gini, age_adjusted_rate, poverty_prop, college_prop, 
+         sk2014, male_prop, white_prop, geriatric_prop)
+```
+
+# Calculating descriptive stats
+
+### Urban-rural code
+
+Proportions for urban-rural code were calculated separately because the variable
+is coded as a categorical variable. 
+
+There are only 68 counties (4% of analytic sample) with rural code 1 (Most 
+rural) included in analyses. The codes will be aggregated into 3 groups - 
+Urban = 2 (5, 6), in-between = 1 (3,4), and rural = 0 (1,2). 
+```{r}
+final_df %>% 
+  select(urban_rural_code) %>% 
+  mutate(urban_rural_recoded = as.integer((urban_rural_code - 1) / 2)) %>% 
+  group_by(urban_rural_recoded) %>% 
+  summarize(counts = n()) %>% 
+  mutate(proportion = counts/sum(counts))
+```
+
+### Remaining variables
+
+The remaining variables are continuous and therefore can be calculated in the
+same fashion.
+```{r}
+raw_calc <- final_df %>% 
+  select(-urban_rural_code) %>% 
+  summarize_all(funs(mean, sd, min, max))
+```
+
+```{r}
+select_col <- function(name) {
+  col = raw_calc %>% 
+    select(starts_with(name))
+  
+  col
+}
+
+df <- tibble(
+  var = purrr::map(c('gini', 'age', 'sk', 'white', 'male', 'geriatric',
+                     'college'), select_col)
+)
+
+
+```
+
