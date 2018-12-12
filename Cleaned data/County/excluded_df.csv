@@ -1,0 +1,52 @@
+state,n_counties,n_excluded,prop_missing
+Connecticut,8,0,0
+Delaware,3,0,0
+District of Columbia,1,0,0
+New Hampshire,10,0,0
+New Jersey,21,0,0
+Rhode Island,5,0,0
+Maine,16,1,0.06
+New York,62,4,0.06
+Arizona,15,1,0.07
+Maryland,24,2,0.08
+Pennsylvania,67,7,0.1
+California,58,7,0.12
+Massachusetts,14,2,0.14
+Ohio,88,14,0.16
+Florida,67,13,0.19
+Hawaii,5,1,0.2
+Vermont,14,3,0.21
+Washington,39,9,0.23
+Michigan,83,21,0.25
+North Carolina,100,26,0.26
+Tennessee,95,26,0.27
+Oregon,36,10,0.28
+Wisconsin,72,21,0.29
+South Carolina,46,14,0.3
+New Mexico,33,11,0.33
+Indiana,92,32,0.35
+Alabama,67,24,0.36
+Utah,29,12,0.41
+Louisiana,64,28,0.44
+Virginia,133,58,0.44
+Nevada,17,8,0.47
+West Virginia,55,26,0.47
+Illinois,102,50,0.49
+Oklahoma,77,39,0.51
+Colorado,64,33,0.52
+Georgia,159,85,0.53
+Missouri,115,62,0.54
+Arkansas,75,42,0.56
+Kentucky,120,67,0.56
+Minnesota,87,49,0.56
+Wyoming,23,13,0.57
+Texas,254,149,0.59
+Idaho,44,28,0.64
+Mississippi,82,53,0.65
+Alaska,29,20,0.69
+Iowa,99,75,0.76
+Montana,56,43,0.77
+Kansas,105,82,0.78
+Nebraska,93,80,0.86
+North Dakota,53,46,0.87
+South Dakota,66,59,0.89
