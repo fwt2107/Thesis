@@ -18,9 +18,12 @@ This file contains code for running statistical analyses
 
 Read in the dataset and only look at counties with usable suicide rates
 ```{r}
-final_df <- readr::read_csv('./Cleaned data/final_df.csv') %>% 
+final_df <- readr::read_csv('./Cleaned data/County/final_df.csv') %>% 
   filter(usable == T) %>% 
-  mutate(gini_transformed = gini * 100)
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
+         college_prop, poverty_prop, urban_rural_code, everything())
 ```
 
 # OLS Regression
@@ -39,8 +42,11 @@ crude_model <- lm(data = final_df, age_adjusted_rate ~ gini) %>%
   mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
          upper_ci = round(estimate + 1.96*std.error, digits = 2),
          ci = str_c(lower_ci, upper_ci, sep = ", "))
+
+crude_model
 ```
 
+##### Scatterplot of main exposure and outcome
 ```{r}
 final_df %>% 
   ggplot(aes(x = gini, y = age_adjusted_rate)) +
@@ -63,12 +69,6 @@ ols_reg <- function(df) {
 create_model <- function(covariate_index) {
   cbind(final_df$gini, final_df$age_adjusted_rate, final_df[, covariate_index])
 }
-
-final_df <- final_df %>% 
-  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
-  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
-  select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
-         college_prop, poverty_prop, urban_rural_code)
 
 ols_reg_results <- tibble(
   model = map(3:8, create_model),
@@ -102,4 +102,3 @@ results_table <- rbind(crude_model, results_table) %>%
 
 write_csv(results_table, path = './Tables/Model fitting results.csv')
 ```
-
