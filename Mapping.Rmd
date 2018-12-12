@@ -33,7 +33,7 @@ usa_map <- readOGR(dsn = 'cb_2016_us_county_500k',
 
 head(usa_map@data)
 
-final_df <- readr::read_csv('./Cleaned data/final_df.csv')
+final_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
 ```
 
 1. Convert the FIPS code into numeric type to allow merging with final_df.

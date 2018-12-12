@@ -29,7 +29,7 @@ These are the steps I took to clean and process this data:
 
 3. Created a new variable to separate county name and state
 ```{r exposure data}
-acs_exp_df <- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %>% 
+acs_exp_df <- read_csv('./Raw data/County/ACS 2012-2016 Gini.csv', skip = 1) %>% 
   janitor::clean_names() %>% 
   select(-id, 
          county_code = id2, 
@@ -69,7 +69,7 @@ clean_rates <- function(x) {
   x
 }
 
-cdc_df <- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %>% 
+cdc_df <- readr::read_tsv('./Raw data/County/Compressed Mortality, 1999-2016.txt') %>% 
   janitor::clean_names() %>% 
   drop_na(county) %>% 
   select(-notes) %>% 
@@ -117,7 +117,7 @@ These are the steps I took to clean the data:
 
 2. Changed variable names for ease of use
 ```{r covariate urban/rural}
-nchs_df <- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %>% 
+nchs_df <- readxl::read_excel('./Raw data/County/NCHSURCodes2013.xlsx') %>% 
   janitor::clean_names() %>%
   select(county_code = fips_code,
          urban_rural_code = x2013_code) %>% 
@@ -136,7 +136,7 @@ These are the steps I took to clean the data:
 2. Only keep information for county code, county name, mean income and margin
 of error, median income and margin of error, and poverty and margin of error.
 ```{r covariate absolute income/poverty}
-acs_income_df <- read_csv('./Raw data/ACS 2012-2016 Economics.csv')
+acs_income_df <- read_csv('./Raw data/County/ACS 2012-2016 Economics.csv')
 acs_income_df <- acs_income_df[-1, ]
 acs_income_df <- acs_income_df %>% 
   janitor::clean_names() %>%
@@ -164,7 +164,7 @@ with college education or higher
 
 2. Remove an unneeded line of notes from the dataset
 ```{r covariate education}
-edu_df <- read_csv('./Raw data/ACS 2012-2016 Education.csv') %>% 
+edu_df <- read_csv('./Raw data/County/ACS 2012-2016 Education.csv') %>% 
   janitor::clean_names() %>% 
   select(county_code = geo_id2,
          college_prop = hc02_est_vc18,
@@ -190,7 +190,7 @@ years and older, and the margins of error for these estimates
 
 2. Removed a row of unneeded notes from the data
 ```{r covariate gender/race/age}
-gender_race_df <- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %>% 
+gender_race_df <- read_csv('./Raw data/County/ACS 2012-2016 Demographics.csv') %>% 
   janitor::clean_names() %>% 
   select(county_code = geo_id2,
          male_prop = hc03_vc04,
@@ -209,7 +209,7 @@ gender_race_df <- gender_race_df[-1, ]
 # Mediator - Social capital
 Social capital was measured by the method described in Rupasingha et al (2006).
 ```{r mediator data}
-socialcap_df <- readxl::read_excel('./Raw data/Social capital 2014.xlsx') %>% 
+socialcap_df <- readxl::read_excel('./Raw data/County/Social capital 2014.xlsx') %>% 
   janitor::clean_names() %>% 
   mutate(county_code = as.integer(fips)) %>% 
   select(-fips)

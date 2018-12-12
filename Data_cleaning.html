@@ -139,7 +139,7 @@ $(document).ready(function () {
 <li><p>Renamed variables for ease of use</p></li>
 <li><p>Created a new variable to separate county name and state</p></li>
 </ol>
-<pre class="r"><code>acs_exp_df &lt;- read_csv('./Raw data/ACS 2012-2016 Gini.csv', skip = 1) %&gt;% 
+<pre class="r"><code>acs_exp_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Gini.csv', skip = 1) %&gt;% 
   janitor::clean_names() %&gt;% 
   select(-id, 
          county_code = id2, 
@@ -174,7 +174,7 @@ $(document).ready(function () {
   x
 }
 
-cdc_df &lt;- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %&gt;% 
+cdc_df &lt;- readr::read_tsv('./Raw data/County/Compressed Mortality, 1999-2016.txt') %&gt;% 
   janitor::clean_names() %&gt;% 
   drop_na(county) %&gt;% 
   select(-notes) %&gt;% 
@@ -208,7 +208,7 @@ cdc_df &lt;- readr::read_tsv('./Raw data/Compressed Mortality, 1999-2016.txt') %
 <pre><code>## Warning in rbind(names(probs), probs_f): number of columns of result is not
 ## a multiple of vector length (arg 1)</code></pre>
 <pre><code>## Warning: 105 parsing failures.
-## row # A tibble: 5 x 5 col     row col       expected   actual   file                                 expected   &lt;int&gt; &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;    &lt;chr&gt;                                actual 1  2920 Populati~ an integer Missing  './Raw data/Compressed Mortality, 1~ file 2  2925 Populati~ an integer Missing  './Raw data/Compressed Mortality, 1~ row 3  3149 &lt;NA&gt;      10 columns 1 colum~ './Raw data/Compressed Mortality, 1~ col 4  3150 &lt;NA&gt;      10 columns 1 colum~ './Raw data/Compressed Mortality, 1~ expected 5  3151 &lt;NA&gt;      10 columns 1 colum~ './Raw data/Compressed Mortality, 1~
+## row # A tibble: 5 x 5 col     row col       expected   actual  file                                  expected   &lt;int&gt; &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;   &lt;chr&gt;                                 actual 1  2920 Populati~ an integer Missing './Raw data/County/Compressed Mortal~ file 2  2925 Populati~ an integer Missing './Raw data/County/Compressed Mortal~ row 3  3149 &lt;NA&gt;      10 columns 1 colu~ './Raw data/County/Compressed Mortal~ col 4  3150 &lt;NA&gt;      10 columns 1 colu~ './Raw data/County/Compressed Mortal~ expected 5  3151 &lt;NA&gt;      10 columns 1 colu~ './Raw data/County/Compressed Mortal~
 ## ... ................. ... .......................................................................... ........ .......................................................................... ...... .......................................................................... .... .......................................................................... ... .......................................................................... ... .......................................................................... ........ ..........................................................................
 ## See problems(...) for more details.</code></pre>
 <pre><code>## Warning in evalq(as.numeric(age_adjusted_rate), &lt;environment&gt;): NAs
@@ -232,7 +232,7 @@ unreliable_counties &lt;- length(which(cdc_df$unreliable))</code></pre>
 <li><p>Keep only the county code and urban/rural classification</p></li>
 <li><p>Changed variable names for ease of use</p></li>
 </ol>
-<pre class="r"><code>nchs_df &lt;- readxl::read_excel('./Raw data/NCHSURCodes2013.xlsx') %&gt;% 
+<pre class="r"><code>nchs_df &lt;- readxl::read_excel('./Raw data/County/NCHSURCodes2013.xlsx') %&gt;% 
   janitor::clean_names() %&gt;%
   select(county_code = fips_code,
          urban_rural_code = x2013_code) %&gt;% 
@@ -246,7 +246,7 @@ unreliable_counties &lt;- length(which(cdc_df$unreliable))</code></pre>
 <li><p>Deleted the 1st row of the dataset which contains unneeded notes</p></li>
 <li><p>Only keep information for county code, county name, mean income and margin of error, median income and margin of error, and poverty and margin of error.</p></li>
 </ol>
-<pre class="r"><code>acs_income_df &lt;- read_csv('./Raw data/ACS 2012-2016 Economics.csv')</code></pre>
+<pre class="r"><code>acs_income_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Economics.csv')</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   .default = col_character()
@@ -272,7 +272,7 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <li><p>Only kept variables for the county code, % of total population with college education or higher, and the margin of error for the % of total population with college education or higher</p></li>
 <li><p>Remove an unneeded line of notes from the dataset</p></li>
 </ol>
-<pre class="r"><code>edu_df &lt;- read_csv('./Raw data/ACS 2012-2016 Education.csv') %&gt;% 
+<pre class="r"><code>edu_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Education.csv') %&gt;% 
   janitor::clean_names() %&gt;% 
   select(county_code = geo_id2,
          college_prop = hc02_est_vc18,
@@ -295,7 +295,7 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <li><p>Only kept variables for county code, % of total population that identified as white, % of total population that is male, % of total population that is 65 years and older, and the margins of error for these estimates</p></li>
 <li><p>Removed a row of unneeded notes from the data</p></li>
 </ol>
-<pre class="r"><code>gender_race_df &lt;- read_csv('./Raw data/ACS 2012-2016 Demographics.csv') %&gt;% 
+<pre class="r"><code>gender_race_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Demographics.csv') %&gt;% 
   janitor::clean_names() %&gt;% 
   select(county_code = geo_id2,
          male_prop = hc03_vc04,
@@ -318,7 +318,7 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <div id="mediator---social-capital" class="section level1">
 <h1>Mediator - Social capital</h1>
 <p>Social capital was measured by the method described in Rupasingha et al (2006).</p>
-<pre class="r"><code>socialcap_df &lt;- readxl::read_excel('./Raw data/Social capital 2014.xlsx') %&gt;% 
+<pre class="r"><code>socialcap_df &lt;- readxl::read_excel('./Raw data/County/Social capital 2014.xlsx') %&gt;% 
   janitor::clean_names() %&gt;% 
   mutate(county_code = as.integer(fips)) %&gt;% 
   select(-fips)</code></pre>

@@ -28,7 +28,7 @@ formal statistical testing.
 
 Loads the final dataset created from the data_cleaning file.
 ```{r loading dataset, include = F}
-final_df <- readr::read_csv('./Cleaned data/final_df.csv')
+final_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
 ```
 
 Get counts of usable, non-usable counties.
@@ -93,7 +93,7 @@ excluded_df <- final_df %>%
   arrange(prop_missing)
 options(tibble.print_max = Inf)
 print(excluded_df)
-# write_csv(excluded_df, path = './Cleaned data/excluded_df.csv')
+# write_csv(excluded_df, path = './Cleaned data/County/excluded_df.csv')
 ```
 
 ### Plotting
