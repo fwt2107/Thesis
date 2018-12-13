@@ -236,7 +236,7 @@ final_df <- left_join(acs_exp_df, cdc_df, by = "county_code") %>%
 
 I then saved the final dataset as a csv file for future analyses.
 ```{r save final dataset}
-write_csv(final_df, path = "./Cleaned data/final_df.csv")
+write_csv(final_df, path = "./Cleaned data/County/final_df.csv")
 ```
 
 

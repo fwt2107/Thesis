@@ -1,0 +1,112 @@
+"Notes"	"State"	"State Code"	Deaths	Population	Crude Rate	Crude Rate Lower 95% Confidence Interval	Crude Rate Upper 95% Confidence Interval	Crude Rate Standard Error	Age Adjusted Rate	Age Adjusted Rate Lower 95% Confidence Interval	Age Adjusted Rate Upper 95% Confidence Interval	Age Adjusted Rate Standard Error
+	"Alabama"	"01"	11241	83992436	13.38	13.14	13.63	0.13	13.13	12.88	13.37	0.13
+	"Alaska"	"02"	2680	12361580	21.68	20.86	22.50	0.42	21.66	20.82	22.51	0.43
+	"Arizona"	"04"	18258	109148430	16.73	16.49	16.97	0.12	16.72	16.48	16.96	0.12
+	"Arkansas"	"05"	7783	51117937	15.23	14.89	15.56	0.17	15.18	14.84	15.52	0.17
+	"California"	"06"	65112	657416771	9.90	9.83	9.98	0.04	9.91	9.84	9.99	0.04
+	"Colorado"	"08"	15427	87509259	17.63	17.35	17.91	0.14	17.40	17.12	17.68	0.14
+	"Connecticut"	"09"	5757	63429895	9.08	8.84	9.31	0.12	8.68	8.45	8.90	0.12
+	"Delaware"	"10"	1847	15640370	11.81	11.27	12.35	0.27	11.53	11.00	12.07	0.27
+	"District of Columbia"	"11"	643	10828119	5.94	5.48	6.40	0.23	5.67	5.23	6.12	0.23
+	"Florida"	"12"	47407	328334891	14.44	14.31	14.57	0.07	13.51	13.39	13.63	0.06
+	"Georgia"	"13"	19159	167063038	11.47	11.31	11.63	0.08	11.54	11.37	11.70	0.08
+	"Hawaii"	"15"	2772	23815715	11.64	11.21	12.07	0.22	11.33	10.91	11.76	0.22
+	"Idaho"	"16"	4648	26805064	17.34	16.84	17.84	0.25	17.74	17.23	18.26	0.26
+	"Illinois"	"17"	21118	228380710	9.25	9.12	9.37	0.06	9.13	9.00	9.25	0.06
+	"Indiana"	"18"	14776	114662022	12.89	12.68	13.09	0.11	12.85	12.65	13.06	0.11
+	"Iowa"	"19"	6552	54246275	12.08	11.79	12.37	0.15	12.03	11.74	12.33	0.15
+	"Kansas"	"20"	6989	50386699	13.87	13.55	14.20	0.17	13.93	13.60	14.26	0.17
+	"Kentucky"	"21"	11185	76515344	14.62	14.35	14.89	0.14	14.37	14.11	14.64	0.14
+	"Louisiana"	"22"	9875	81497430	12.12	11.88	12.36	0.12	12.12	11.88	12.36	0.12
+	"Maine"	"23"	3422	23679343	14.45	13.97	14.94	0.25	13.63	13.16	14.10	0.24
+	"Maryland"	"24"	9331	102114446	9.14	8.95	9.32	0.09	8.93	8.74	9.11	0.09
+	"Massachusetts"	"25"	9251	117417917	7.88	7.72	8.04	0.08	7.57	7.41	7.72	0.08
+	"Michigan"	"26"	21127	179183694	11.79	11.63	11.95	0.08	11.64	11.48	11.79	0.08
+	"Minnesota"	"27"	10512	93861342	11.20	10.99	11.41	0.11	11.05	10.84	11.26	0.11
+	"Mississippi"	"28"	6598	52679316	12.52	12.22	12.83	0.15	12.61	12.30	12.92	0.16
+	"Missouri"	"29"	15049	105633794	14.25	14.02	14.47	0.12	14.10	13.87	14.32	0.12
+	"Montana"	"30"	3772	17390072	21.69	21.00	22.38	0.35	21.26	20.57	21.95	0.35
+	"Nebraska"	"31"	3589	32353793	11.09	10.73	11.46	0.19	11.11	10.75	11.48	0.19
+	"Nevada"	"32"	8867	45309193	19.57	19.16	19.98	0.21	19.34	18.93	19.74	0.21
+	"New Hampshire"	"33"	3174	23376257	13.58	13.11	14.05	0.24	12.96	12.50	13.42	0.23
+	"New Jersey"	"34"	11448	156723850	7.30	7.17	7.44	0.07	7.06	6.93	7.19	0.07
+	"New Mexico"	"35"	7071	35577733	19.87	19.41	20.34	0.24	19.95	19.48	20.42	0.24
+	"New York"	"36"	25533	347701337	7.34	7.25	7.43	0.05	7.09	7.00	7.17	0.04
+	"North Carolina"	"37"	20436	163900963	12.47	12.30	12.64	0.09	12.21	12.05	12.38	0.09
+	"North Dakota"	"38"	1764	12156945	14.51	13.83	15.19	0.35	14.35	13.67	15.03	0.35
+	"Ohio"	"39"	24458	206876274	11.82	11.67	11.97	0.08	11.61	11.47	11.76	0.07
+	"Oklahoma"	"40"	10713	65953258	16.24	15.94	16.55	0.16	16.32	16.01	16.63	0.16
+	"Oregon"	"41"	11169	67107832	16.64	16.33	16.95	0.16	16.04	15.74	16.34	0.15
+	"Pennsylvania"	"42"	27883	226130679	12.33	12.19	12.48	0.07	11.89	11.75	12.03	0.07
+	"Rhode Island"	"44"	1832	19032220	9.63	9.18	10.07	0.22	9.29	8.86	9.72	0.22
+	"South Carolina"	"45"	10448	80182715	13.03	12.78	13.28	0.13	12.74	12.49	12.98	0.13
+	"South Dakota"	"46"	2245	14407588	15.58	14.94	16.23	0.33	15.75	15.09	16.41	0.34
+	"Tennessee"	"47"	16075	110926076	14.49	14.27	14.72	0.11	14.17	13.95	14.39	0.11
+	"Texas"	"48"	47844	433499543	11.04	10.94	11.14	0.05	11.32	11.22	11.42	0.05
+	"Utah"	"49"	7794	47096459	16.55	16.18	16.92	0.19	18.01	17.60	18.42	0.21
+	"Vermont"	"50"	1679	11179230	15.02	14.30	15.74	0.37	14.23	13.54	14.92	0.35
+	"Virginia"	"51"	16883	139830305	12.07	11.89	12.26	0.09	11.77	11.59	11.95	0.09
+	"Washington"	"53"	16445	117289596	14.02	13.81	14.24	0.11	13.69	13.48	13.90	0.11
+	"West Virginia"	"54"	5220	32964738	15.84	15.41	16.26	0.22	15.18	14.76	15.60	0.21
+	"Wisconsin"	"55"	12890	100757056	12.79	12.57	13.01	0.11	12.57	12.35	12.79	0.11
+	"Wyoming"	"56"	2092	9716887	21.53	20.61	22.45	0.47	21.50	20.56	22.43	0.48
+"Total"			649843	5435162436	11.96	11.93	11.99	0.01	11.75	11.72	11.78	0.01
+"---"
+"Dataset: Compressed Mortality, 1999-2016"
+"Query Parameters:"
+"Title:"
+"2013 Metro/Nonmetro: All"
+"2013 Urbanization: All"
+"Age Group: All"
+"Gender: All"
+"Hispanic Origin: All"
+"Injury Intent: Suicide"
+"Injury Mechanism & All Other Leading Causes: All"
+"Race: All"
+"States: All"
+"Year: All, 1999 to 2016"
+"Group By: State"
+"Show Totals: True"
+"Show Zero Values: True"
+"Show Suppressed: True"
+"Standard Population: 2000 U.S. Std. Population"
+"Calculate Rates Per: 100,000"
+"---"
+"Help: See http://wonder.cdc.gov/wonder/help/cmf.html for more information."
+"---"
+"Query Date: Dec 10, 2018 9:25:21 PM"
+"---"
+"Suggested Citation: Centers for Disease Control and Prevention, National Center for Health Statistics. Compressed Mortality File"
+"1999-2016 on CDC WONDER Online Database, released June 2017. Data are from the Compressed Mortality File 1999-2016 Series 20 No."
+"2U, 2016, as compiled from data provided by the 57 vital statistics jurisdictions through the Vital Statistics Cooperative"
+"Program. Accessed at http://wonder.cdc.gov/cmf-icd10.html on Dec 10, 2018 9:25:21 PM"
+"---"
+Caveats:
+"1. About sub-national population figures for regions, divisions, states and counties: population figures for 1999 are from the"
+"1990-1999 series of bridged-race intercensal estimates of the July 1 resident population; population figures for 2000 and 2010"
+"are bridged-race April 1 census counts; population figures for 2001-2009 are from the revised 2000-2009 series of bridged-race"
+"intercensal estimates of the July 1 resident population; and population figures for 2011-2015 are bridged-race postcensal"
+"estimates of the July 1 resident population, from the Vintage 2015 series released by NCHS on June 28, 2016."
+"2. The population figures used in the calculation of death rates for the age group 'under 1 year' are the estimates of the"
+"resident population that is under one year of age. More information: http://wonder.cdc.gov/wonder/help/cmf.html#Age Group."
+"3. The populations used to calculate standard age-adjusted rates are documented here: More information:"
+"http://wonder.cdc.gov/wonder/help/cmf.html#2000 Standard Population."
+"4. The method used to calculate age-adjusted rates is documented here: More information:"
+"http://wonder.cdc.gov/wonder/help/cmf.html#Age-Adjusted Rates."
+"5. Deaths for persons of unknown age are included in counts and crude rates, but are not included in age-adjusted rates."
+"6. The method used to calculate 95% confidence intervals is documented here: More information:"
+"http://wonder.cdc.gov/wonder/help/cmf.html#Confidence-Intervals."
+"7. The method used to calculate standard errors is documented here: More information:"
+"http://wonder.cdc.gov/wonder/help/cmf.html#Standard-Errors."
+"8. As of April 3, 2017, the underlying cause of death has been revised for 125 deaths in 2014. More information:"
+"http://wonder.cdc.gov/wonder/help/cmf.html#2014-Revision."
+"9. Circumstances in California resulted in unusually high death counts for the ICD-10 cause of death code R99, ""Other"
+"ill-defined and unspecified causes of mortality"" for deaths occurring in years 2000 and 2001. Caution should be used in"
+"interpreting these data. More information: http://wonder.cdc.gov/wonder/help/cmf.html#California-Reporting-Anomalies."
+"10. Circumstances in Georgia for the years 2008-2009 have resulted in unusually high death counts for the ICD-10 cause of death"
+"code R99, ""Other ill-defined and unspecified causes of mortality."" Caution should be used in interpreting these data. More"
+"information: http://wonder.cdc.gov/wonder/help/cmf.html#Georgia-Reporting-Anomalies."
+"11. Circumstances in New Jersey for the year 2009 have resulted in unusually high death counts for the ICD-10 cause of death"
+"code R99, ""Other ill-defined and unspecified causes of mortality"" and therefore unusually low death counts in other ICD-10"
+"codes, most notably R95, ""Sudden Infant Death Syndrome"" and X40-X49, ""Unintentional poisoning."" Caution should be used in"
+"interpreting these data. More information: http://wonder.cdc.gov/wonder/help/cmf.html#New-Jersey-Reporting-Anomalies."

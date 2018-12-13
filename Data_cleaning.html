@@ -334,7 +334,7 @@ acs_income_df &lt;- acs_income_df %&gt;%
   left_join(., socialcap_df, by = &quot;county_code&quot;) %&gt;% 
   left_join(., gender_race_df, by = &quot;county_code&quot;)</code></pre>
 <p>I then saved the final dataset as a csv file for future analyses.</p>
-<pre class="r"><code>write_csv(final_df, path = &quot;./Cleaned data/final_df.csv&quot;)</code></pre>
+<pre class="r"><code>write_csv(final_df, path = &quot;./Cleaned data/County/final_df.csv&quot;)</code></pre>
 </div>
 
 
