@@ -174,7 +174,7 @@ edu_df <- edu_df[-1, ]
 ```
 
 
-### Race/ethnicity and gender
+### Race/ethnicity, gender, and age
 Race/ethnicity, gender, and age were retrieved from the ACS 2012-2016 5 year 
 estimate data. Studies and vital stats have indicated that non-Hispanic whites 
 have higher age-adjusted rates of suicide compared to other racial/ethnic
