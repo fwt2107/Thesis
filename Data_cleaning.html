@@ -164,8 +164,8 @@ $(document).ready(function () {
 <ol style="list-style-type: decimal">
 <li><p>Wrote a function to replace suppressed or unreliable rates with NA’s</p></li>
 <li><p>The .txt file contained notes about the data at the end of the file. These notes were deleted from the dataset, but they can be viewed in “CDC wonder notes.docx”.</p></li>
-<li><p>I created variables to note if the age-adjusted rate for a particular county was suppressed or unreliable and therefore unusable, or not.</p></li>
-<li><p>Converted the usable age-adjusted rates into numeric, and changed the name of the standard error variable for ease of use.</p></li>
+<li><p>I created variables to note if the cruderate for a particular county was suppressed or unreliable and therefore unusable, or not.</p></li>
+<li><p>Converted the usable crude and age-adjusted rates into numeric</p></li>
 </ol>
 <pre class="r"><code>clean_rates &lt;- function(x) {
   unusable &lt;- which(str_detect(x, &quot;Unreliable&quot;) | 
@@ -180,18 +180,19 @@ cdc_df &lt;- readr::read_tsv('./Raw data/County/Compressed Mortality, 1999-2016.
   select(-notes) %&gt;% 
   mutate(suppressed = if_else(deaths == &quot;Suppressed&quot;, T, F),
          unreliable = 
-           if_else(str_detect(age_adjusted_rate, &quot;Unreliable&quot;), T, F),
+           if_else(str_detect(crude_rate, &quot;Unreliable&quot;), T, F),
          usable = !(suppressed | unreliable)) %&gt;% 
   select(county_code, 
          age_adjusted_rate, 
-         age_adjusted_se = age_adjusted_rate_standard_error,
+         crude_rate,
          suppressed,
          unreliable,
          usable) %&gt;% 
-  mutate(age_adjusted_rate = clean_rates(age_adjusted_rate)) %&gt;% 
+  mutate(age_adjusted_rate = clean_rates(age_adjusted_rate),
+         crude_rate = clean_rates(crude_rate)) %&gt;% 
   mutate(county_code = as.integer(county_code),
          age_adjusted_rate = as.numeric(age_adjusted_rate),
-         age_adjusted_se = as.numeric(age_adjusted_se))</code></pre>
+         crude_rate = as.numeric(crude_rate))</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   Notes = col_character(),
@@ -213,8 +214,8 @@ cdc_df &lt;- readr::read_tsv('./Raw data/County/Compressed Mortality, 1999-2016.
 ## See problems(...) for more details.</code></pre>
 <pre><code>## Warning in evalq(as.numeric(age_adjusted_rate), &lt;environment&gt;): NAs
 ## introduced by coercion</code></pre>
-<pre><code>## Warning in evalq(as.numeric(age_adjusted_se), &lt;environment&gt;): NAs
-## introduced by coercion</code></pre>
+<pre><code>## Warning in evalq(as.numeric(crude_rate), &lt;environment&gt;): NAs introduced by
+## coercion</code></pre>
 <pre class="r"><code>usable_counties &lt;- length(which(cdc_df$usable))
 suppressed_counties &lt;- length(which(cdc_df$suppressed))
 unreliable_counties &lt;- length(which(cdc_df$unreliable))</code></pre>
@@ -238,46 +239,55 @@ unreliable_counties &lt;- length(which(cdc_df$unreliable))</code></pre>
          urban_rural_code = x2013_code) %&gt;% 
   mutate(county_code = as.integer(county_code))</code></pre>
 </div>
-<div id="mean-and-median-household-income" class="section level3">
-<h3>Mean and median household income</h3>
-<p>Mean and median household income was collected from the ACS 2012-2016 5 year data.</p>
+<div id="economic-characteristics---median-income-poverty-unemployment-occupation" class="section level3">
+<h3>Economic characteristics - Median income, poverty, unemployment, occupation</h3>
+<p>Data on county economic characteristics were collected from the ACS 2012-2016 5 year data. Past studies have suggested that low/poor economic conditions lead to worse health outcomes. Observed associations between income inequality and suicide may be attributable to poor economic conditions and not necessarily inequality within a county i.e. suicides within a county would decrease if absolute/overall economic conditions improved even if gaps between social/income groups increase.</p>
+<p>The variables selected as economic measures are: median income, poverty, unemployment among civilians in the labor force ,and proportion of employed individuals working in “blue-collar” occupations (natural resources, construction, maintenance, production, transportation, and material moving).</p>
 <p>These are the steps I took to clean the data:</p>
 <ol style="list-style-type: decimal">
 <li><p>Deleted the 1st row of the dataset which contains unneeded notes</p></li>
-<li><p>Only keep information for county code, county name, mean income and margin of error, median income and margin of error, and poverty and margin of error.</p></li>
+<li><p>Only keep information for county code, county name, median income, poverty, unemployment, and blue-collar occupations</p></li>
 </ol>
-<pre class="r"><code>acs_income_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Economics.csv')</code></pre>
+<pre class="r"><code>econ_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Economics.csv')</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   .default = col_character()
 ## )</code></pre>
 <pre><code>## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>acs_income_df &lt;- acs_income_df[-1, ]
-acs_income_df &lt;- acs_income_df %&gt;% 
+<pre class="r"><code>econ_df &lt;- econ_df[-1, ]
+econ_df &lt;- econ_df %&gt;% 
   janitor::clean_names() %&gt;%
   select(county_code = geo_id2,
-         mean_income = hc01_vc85,
-         mean_income_moe = hc02_vc85,
          median_income = hc01_vc86,
-         median_income_moe = hc02_vc86,
          poverty_prop = hc03_vc171,
-         poverty_prop_moe = hc04_vc171) %&gt;% 
-  mutate(county_code = as.integer(county_code))</code></pre>
+         unemployed_prop = hc03_vc12,
+         hc03_vc44, 
+         hc03_vc45) %&gt;% 
+  mutate(county_code = as.integer(county_code),
+         blue_collar_prop = as.numeric(hc03_vc44) + as.numeric(hc03_vc45)) %&gt;% 
+  select(-hc03_vc44, -hc03_vc45)</code></pre>
 </div>
 <div id="educational-attainment" class="section level3">
 <h3>Educational attainment</h3>
-<p>Educational attainment is operatioanlized as the proportion of the county population with a college education or greater. This was retrieved from the ACS 2012-2016 5 year estimate data.</p>
+<p>Data on educational attainment were obtained from the ACS 2012-2016 5 year data. Differences in suicide rates by educational attainment have been observed in the literature. Educational attainment in a county could also be used as a measure of SES.</p>
+<p>Data were obtained on the proportion of people in a county with less than a high school education, high school/GED education, some college/associate degree, and college degree or above among people 25 years and older.</p>
 <p>These are the steps I took to clean the data:</p>
 <ol style="list-style-type: decimal">
-<li><p>Only kept variables for the county code, % of total population with college education or higher, and the margin of error for the % of total population with college education or higher</p></li>
+<li><p>Only kept variables for the county code, % of people with no high school diploma/equivalent, % of people with high school/GED education, % of people with some college/associate degree, and % of people with college degree or greater among people 25 years and older.</p></li>
 <li><p>Remove an unneeded line of notes from the dataset</p></li>
 </ol>
 <pre class="r"><code>edu_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Education.csv') %&gt;% 
   janitor::clean_names() %&gt;% 
   select(county_code = geo_id2,
-         college_prop = hc02_est_vc18,
-         college_prop_moe = hc02_moe_vc18) %&gt;% 
-  mutate(county_code = as.integer(county_code))</code></pre>
+         hc02_est_vc09,
+         hc02_est_vc10,
+         hs_prop = hc02_est_vc11,
+         hc02_est_vc12,
+         hc02_est_vc13,
+         college_prop = hc02_est_vc18) %&gt;% 
+  mutate(county_code = as.integer(county_code),
+         below_hs_prop = as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10),
+         some_college_prop = as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13))</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   .default = col_character()
@@ -285,26 +295,47 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <pre><code>## See spec(...) for full column specifications.</code></pre>
 <pre><code>## Warning in evalq(as.integer(county_code), &lt;environment&gt;): NAs introduced by
 ## coercion</code></pre>
+<pre><code>## Warning in evalq(as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10), :
+## NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10), :
+## NAs introduced by coercion</code></pre>
+<pre><code>## Warning in evalq(as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13), :
+## NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13), :
+## NAs introduced by coercion</code></pre>
 <pre class="r"><code>edu_df &lt;- edu_df[-1, ]</code></pre>
 </div>
-<div id="raceethnicity-gender-and-age" class="section level3">
-<h3>Race/ethnicity, gender, and age</h3>
-<p>Race/ethnicity, gender, and age were retrieved from the ACS 2012-2016 5 year estimate data. Studies and vital stats have indicated that non-Hispanic whites have higher age-adjusted rates of suicide compared to other racial/ethnic groups, males have greater age-adjusted rates of suicide compared to females, and the elderly (65 years and older) have greater rates of suicide compared to other age groups.</p>
+<div id="demographics---raceethnicity-gender-and-age" class="section level3">
+<h3>Demographics - Race/ethnicity, gender, and age</h3>
+<p>Race/ethnicity, gender, and age were retrieved from the ACS 2012-2016 5 year estimate data. Studies and vital stats have indicated that non-Hispanic whites have higher age-adjusted rates of suicide compared to other racial/ethnic groups, males have greater age-adjusted rates of suicide compared to females, and the elderly (65 years and older) have greater rates of suicide compared to other age groups. To capture any variations, I extracted data on other race and ethnic group and age groups</p>
 <p>These are the steps I took to clean the data:</p>
 <ol style="list-style-type: decimal">
 <li><p>Only kept variables for county code, % of total population that identified as white, % of total population that is male, % of total population that is 65 years and older, and the margins of error for these estimates</p></li>
 <li><p>Removed a row of unneeded notes from the data</p></li>
 </ol>
-<pre class="r"><code>gender_race_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Demographics.csv') %&gt;% 
+<pre class="r"><code>demographic_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Demographics.csv') %&gt;% 
   janitor::clean_names() %&gt;% 
   select(county_code = geo_id2,
          male_prop = hc03_vc04,
-         male_prop_moe = hc04_vc04,
          white_prop = hc03_vc94,
-         white_prop_moe = hc04_vc94,
+         black_prop = hc03_vc95,
+         native_prop = hc03_vc96,
+         asian_prop = hc03_vc97,
+         hispanic_prop = hc03_vc88,
+         median_age = hc01_vc23,
          geriatric_prop = hc03_vc29,
-         geriatric_prop_moe = hc04_vc29) %&gt;% 
-  mutate(county_code = as.integer(county_code))</code></pre>
+         hc03_vc11, hc03_vc12,
+         hc03_vc13, hc03_vc14, 
+         hc03_vc15, hc03_vc16, hc03_vc17) %&gt;% 
+  mutate(county_code = as.integer(county_code),
+         age_15_24_prop = as.numeric(hc03_vc11) + as.numeric(hc03_vc12),
+         age_25_44_prop = as.numeric(hc03_vc13) + as.numeric(hc03_vc14),
+         age_45_64_prop = as.numeric(hc03_vc15) + as.numeric(hc03_vc16) +
+           as.numeric(hc03_vc17)) %&gt;% 
+  select(-c(hc03_vc11, hc03_vc12, hc03_vc13, hc03_vc14, hc03_vc15,
+            hc03_vc16, hc03_vc17))</code></pre>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   .default = col_character()
@@ -312,7 +343,25 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <pre><code>## See spec(...) for full column specifications.</code></pre>
 <pre><code>## Warning in evalq(as.integer(county_code), &lt;environment&gt;): NAs introduced by
 ## coercion</code></pre>
-<pre class="r"><code>gender_race_df &lt;- gender_race_df[-1, ]</code></pre>
+<pre><code>## Warning in evalq(as.numeric(hc03_vc11) + as.numeric(hc03_vc12),
+## &lt;environment&gt;): NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc03_vc11) + as.numeric(hc03_vc12),
+## &lt;environment&gt;): NAs introduced by coercion</code></pre>
+<pre><code>## Warning in evalq(as.numeric(hc03_vc13) + as.numeric(hc03_vc14),
+## &lt;environment&gt;): NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc03_vc13) + as.numeric(hc03_vc14),
+## &lt;environment&gt;): NAs introduced by coercion</code></pre>
+<pre><code>## Warning in evalq(as.numeric(hc03_vc15) + as.numeric(hc03_vc16) +
+## as.numeric(hc03_vc17), : NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc03_vc15) + as.numeric(hc03_vc16) +
+## as.numeric(hc03_vc17), : NAs introduced by coercion
+
+## Warning in evalq(as.numeric(hc03_vc15) + as.numeric(hc03_vc16) +
+## as.numeric(hc03_vc17), : NAs introduced by coercion</code></pre>
+<pre class="r"><code>demographic_df &lt;- demographic_df[-1, ]</code></pre>
 </div>
 </div>
 <div id="mediator---social-capital" class="section level1">
@@ -328,11 +377,11 @@ acs_income_df &lt;- acs_income_df %&gt;%
 <p>This section combines all the datasets into 1 cohesive dataset containing all exposure, outcome, covariate, and mediator information.</p>
 <p>The Federal Information Processing Standard Publication 6-4 is a 5-digit code used to identify counties/county equivalents in the US. Datasets will be merged by this county code.</p>
 <pre class="r"><code>final_df &lt;- left_join(acs_exp_df, cdc_df, by = &quot;county_code&quot;) %&gt;% 
-  left_join(., acs_income_df, by = &quot;county_code&quot;) %&gt;% 
+  left_join(., econ_df, by = &quot;county_code&quot;) %&gt;% 
   left_join(., nchs_df, by = &quot;county_code&quot;) %&gt;% 
   left_join(., edu_df, by = &quot;county_code&quot;) %&gt;% 
   left_join(., socialcap_df, by = &quot;county_code&quot;) %&gt;% 
-  left_join(., gender_race_df, by = &quot;county_code&quot;)</code></pre>
+  left_join(., demographic_df, by = &quot;county_code&quot;)</code></pre>
 <p>I then saved the final dataset as a csv file for future analyses.</p>
 <pre class="r"><code>write_csv(final_df, path = &quot;./Cleaned data/County/final_df.csv&quot;)</code></pre>
 </div>
