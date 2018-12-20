@@ -144,8 +144,7 @@ $(document).ready(function () {
   select(-id, 
          county_code = id2, 
          county = geography, 
-         gini = estimate_gini_index,
-         gini_moe = margin_of_error_gini_index) %&gt;% 
+         gini = estimate_gini_index) %&gt;% 
   separate(county, into = c('county', 'state'), sep = ',') %&gt;% 
   mutate(county_code = as.integer(county_code))</code></pre>
 <pre><code>## Parsed with column specification:
