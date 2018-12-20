@@ -1,0 +1,174 @@
+---
+title: "STATE_data_cleaning"
+author: "Felix Tran"
+date: "December 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+library(readr)
+library(janitor)
+library(data.table)
+```
+
+This file contains code for cleaning and merging raw state-level data into a 
+final dataset.
+
+# Main exposure - Income inequality
+
+Read in file on exposure data and rename variables. Removed Puerto Rico from
+analyses because its history as a territory make it difficult to compare to
+states
+```{r}
+gini_df <- read_csv('./Raw data/State/ACS 2012-2016 State gini.csv', skip = 1) %>% 
+  clean_names() %>% 
+  select(-id, -margin_of_error_gini_index) %>% 
+  rename(state_code = id2,
+         state = geography,
+         gini = estimate_gini_index) %>% 
+  filter(state != 'Puerto Rico') %>% 
+  mutate(state_code = as.integer(state_code))
+```
+
+
+# Main outcome - Suicide rates
+
+Read in file on outcome data
+```{r}
+suicide_df <- read_tsv('./Raw data/State/State Compressed Mortality, 1999-2016.txt') %>% 
+  clean_names() %>% 
+  filter(!is.na(state)) %>%
+  select(state_code, crude_rate, age_adjusted_rate) %>% 
+  mutate(state_code = as.integer(state_code))
+```
+
+
+# Covariates
+
+
+### Demographics - Race/ethnicity, gender, and race
+```{r}
+demographic_df <- read_csv('./Raw data/State/ACS 2012-2016 State demographics.csv') %>% 
+  clean_names() %>% 
+  filter(geo_display_label != 'Puerto Rico') %>% 
+  select(state_code = geo_id2,
+         total_pop = hc01_vc03,
+         male_prop = hc03_vc04,
+         white_prop = hc03_vc94,
+         black_prop = hc03_vc95,
+         native_prop = hc03_vc96,
+         asian_prop = hc03_vc97,
+         hispanic_prop = hc03_vc88,
+         median_age = hc01_vc23,
+         geriatric_prop = hc03_vc29,
+         hc03_vc11, hc03_vc12,
+         hc03_vc13, hc03_vc14, 
+         hc03_vc15, hc03_vc16, hc03_vc17) %>% 
+  mutate(state_code = as.integer(state_code),
+         age_15_24_prop = as.numeric(hc03_vc11) + as.numeric(hc03_vc12),
+         age_25_44_prop = as.numeric(hc03_vc13) + as.numeric(hc03_vc14),
+         age_45_64_prop = as.numeric(hc03_vc15) + as.numeric(hc03_vc16) +
+           as.numeric(hc03_vc17)) %>% 
+  select(-c(hc03_vc11, hc03_vc12, hc03_vc13, hc03_vc14, hc03_vc15,
+            hc03_vc16, hc03_vc17))
+demographic_df <- demographic_df[-1, ]
+```
+
+
+### Educational attainment
+```{r}
+edu_df <- read_csv('./Raw data/State/ACS 2012-2016 State education.csv') %>% 
+  clean_names() %>% 
+  filter(geo_display_label != 'Puerto Rico') %>% 
+  select(state_code = geo_id2,
+         hc02_est_vc09,
+         hc02_est_vc10,
+         hs_prop = hc02_est_vc11,
+         hc02_est_vc12,
+         hc02_est_vc13,
+         college_prop = hc02_est_vc18) %>% 
+  mutate(state_code = as.integer(state_code),
+         below_hs_prop = as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10),
+         some_college_prop = as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13)) %>% 
+  select(-c(hc02_est_vc09, hc02_est_vc10, hc02_est_vc12, hc02_est_vc13))
+edu_df <- edu_df[-1, ]
+```
+
+
+### Economic characteristics - Median income, poverty, unemployment, occupation
+```{r}
+econ_df <- read_csv('./Raw data/State/Acs 2012-2016 State economics.csv') %>% 
+  clean_names() %>% 
+  filter(geo_display_label != 'Puerto Rico') %>% 
+  select(state_code = geo_id2,
+         median_income = hc01_vc86,
+         poverty_prop = hc03_vc171,
+         unemployed_prop = hc03_vc12,
+         hc03_vc44, 
+         hc03_vc45) %>% 
+  mutate(state_code = as.integer(state_code),
+         blue_collar_prop = as.numeric(hc03_vc44) + as.numeric(hc03_vc45)) %>% 
+  select(-hc03_vc44, -hc03_vc45)
+econ_df <- econ_df[-1, ]
+```
+
+
+### Federally licensed firearms dealers per capita (proxy for gun ownership)
+
+As a proxy for gun ownership, I am estimating the number of gun dealers per
+capita in each state. I downloaded a pdf file listing the total number of 
+federal firearm licensees (ffl) in each state for the month of July in 2014. 
+Because ATF did not have data on FFL's before 2014, I took the middle of the 
+study timeperiod (2012-2016) as an estimate for the total period.
+
+After reading in the table, I summed up the number of type 1 and 2 FFL's.
+
+Type 1 = Dealer in Firearms Other Than Destructive Devices (Includes Gunsmiths)
+Type 2 = Pawnbroker in Firearms Other Than Destructive Devices
+
+I then converted state abbreviations into their full names for merging with
+other data, then filtered out entities (e.g. Puerto Rico, American Samoa) that
+are not states.
+```{r}
+raw_gun_data <- tabulizer::extract_tables('./Raw data/State/ffl-type-by-state-july-2014.pdf',
+                                          output = 'data.frame')
+
+gun_df <- as_tibble(rbind(raw_gun_data[[1]], raw_gun_data[[2]])) %>% 
+  clean_names() %>% 
+  mutate(dealer = as.numeric(gsub(",", "", x01)),
+         pawnshop = as.numeric(gsub(",", "", x02)),
+         ffl = dealer + pawnshop) %>% 
+  select(state, ffl)
+
+gun_df$state <- openintro::abbr2state(gun_df$state)
+gun_df <- gun_df %>% 
+  filter(!is.na(state))
+```
+
+
+
+# Combining datasets
+
+I  divided the sum of type 1 and 2 FFl's by the state population and 
+multipled the quotient by 10,000 to estimate number of gunshops per 100,000
+residents in a given state.
+```{r merge datasets}
+state_final_df <- left_join(gini_df, suicide_df, by = "state_code") %>% 
+  left_join(., gun_df, by = "state") %>% 
+  left_join(., econ_df, by = "state_code") %>% 
+  left_join(., edu_df, by = "state_code") %>% 
+  left_join(., demographic_df, by = "state_code") %>% 
+  mutate(ffl_per_100000 = round((ffl / as.numeric(total_pop)) * 100000, 
+                               digits = 2))
+```
+
+
+
+# Saving final merged dataset
+```{r}
+write_csv(state_final_df, path = "./Cleaned data/State/state_final_df.csv")
+```
+

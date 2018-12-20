@@ -194,7 +194,8 @@ edu_df <- read_csv('./Raw data/County/ACS 2012-2016 Education.csv') %>%
          college_prop = hc02_est_vc18) %>% 
   mutate(county_code = as.integer(county_code),
          below_hs_prop = as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10),
-         some_college_prop = as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13))
+         some_college_prop = as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13)) %>% 
+  select(-c(hc02_est_vc09, hc02_est_vc10, hc02_est_vc12, hc02_est_vc13))
 edu_df <- edu_df[-1, ]
 ```
 
