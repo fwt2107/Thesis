@@ -142,6 +142,7 @@ $(document).ready(function () {
 <pre class="r"><code>acs_exp_df &lt;- read_csv('./Raw data/County/ACS 2012-2016 Gini.csv', skip = 1) %&gt;% 
   janitor::clean_names() %&gt;% 
   select(-id, 
+         -margin_of_error_gini_index,
          county_code = id2, 
          county = geography, 
          gini = estimate_gini_index) %&gt;% 
