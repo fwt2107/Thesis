@@ -1,0 +1,42 @@
+---
+title: "Data_multilevel_merging"
+author: "Felix Tran"
+date: "December 20, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(stringr)
+library(readr)
+library(janitor)
+library(data.table)
+```
+
+This file merges the county-level and state-level final datasets into 1 dataset.
+
+# Read in datasets
+```{r}
+county_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  filter(usable == T) %>% 
+  rename(geography = county,
+         geography_code = county_code,
+         state_group = state) %>% 
+  select(-c(usable, suppressed, unreliable))
+
+state_df <- read_csv('./Cleaned data/State/state_final_df.csv') %>% 
+  mutate(state_group = state) %>% 
+  rename(geography = state,
+         geography_code = state_code)
+```
+
+
+
+# Merge and save
+```{r}
+merged_df <- bind_rows(county_df, state_df)
+
+write_csv(merged_df, './Cleaned data/merged_df.csv')
+```
+
