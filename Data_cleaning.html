@@ -370,7 +370,7 @@ econ_df &lt;- econ_df %&gt;%
 <pre class="r"><code>socialcap_df &lt;- readxl::read_excel('./Raw data/County/Social capital 2014.xlsx') %&gt;% 
   janitor::clean_names() %&gt;% 
   mutate(county_code = as.integer(fips)) %&gt;% 
-  select(-fips)</code></pre>
+  select(-fips, -county_name)</code></pre>
 </div>
 <div id="combining-datasets" class="section level1">
 <h1>Combining datasets</h1>
