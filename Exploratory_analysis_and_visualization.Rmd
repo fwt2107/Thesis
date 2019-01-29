@@ -19,6 +19,7 @@ library(ggplot2)
 library(broom)
 library(RColorBrewer)
 library(gridExtra)
+library(readr)
 ```
 
 This file contains exploratory and visualization analyses done before any
@@ -28,7 +29,9 @@ formal statistical testing.
 
 Loads the final dataset created from the data_cleaning file.
 ```{r loading dataset, include = F}
-final_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
+final_df <- read_csv('./Cleaned data/County/final_df.csv')
+state_df <- read_csv('./Cleaned data/State/state_final_df.csv')
+merged_df <- read_csv('./Cleaned data/merged_df.csv')
 ```
 
 Get counts of usable, non-usable counties.
@@ -151,6 +154,30 @@ ggplot() +
 against a hypothetical normal curve")
 ```
 
+Histogram of age-unadjusted suicide rates
+```{r}
+summary_stats <- final_df %>% 
+  summarize(mean = mean(crude_rate, na.rm = T),
+            sd = sd(crude_rate, na.rm = T))
+
+set.seed(23)
+normal_df <- tibble(
+  observation = c(1:usable_num),
+  rates = rnorm(usable_num, summary_stats$mean, summary_stats$sd)) 
+
+
+# Histogram and normal curve
+ggplot() +
+  geom_histogram(data = final_df, aes(x = crude_rate),
+                 alpha = 0.6, binwidth = 1) +
+  geom_density(data = normal_df, aes(x = rates, stat(count)),
+               color = 'red', size = 1) +
+  theme_minimal() +
+  labs(title = "Histogram of crude suicide rates against a hypothetical normal curve")
+```
+
+
+
 # Plotting covariates and outcome
 
 Creating plots of covariates by outcome to see if any covariates should be
@@ -206,3 +233,20 @@ handful of outliers, but I feel the association as a whole won't be changed
 by these outliers. Asides from collapsing urban_rural_code into 3 categories
 since 1 category has very few observations compared to the rest, I won't
 transform the covariates.
+
+
+### State-level 
+```{r}
+state_df %>% 
+  ggplot(aes(x = ffl_per_100000, y = crude_rate)) +
+  geom_point() +
+  geom_smooth(method = lm)
+
+state_df %>% 
+  ggplot(aes(x = ffl_per_100000, y = age_adjusted_rate)) +
+  geom_point() +
+  geom_smooth(method = lm)
+```
+
+
+
