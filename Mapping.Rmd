@@ -103,7 +103,83 @@ usa_map_tidied %>%
   filter(!(state == "Alaska" | state == "Hawaii")) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
   geom_polygon(color = 'black') + 
-  scale_fill_gradient() +
+  #scale_fill_gradient2() +
+  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
   theme_bw()
 ```
 
+
+
+
+
+
+
+
+# Plot of state-level suicide rates
+
+Read in the shp file for US counties and the thesis dataset
+```{r}
+usa_map <- readOGR(dsn = 'cb_2016_us_state_500k',
+                   layer = 'cb_2016_us_state_500k',
+                   verbose = T)
+
+head(usa_map@data)
+
+state_final_df <- readr::read_csv('./Cleaned data/State/state_final_df.csv')
+```
+
+1. Convert the FIPS code into numeric type to allow merging with final_df.
+
+2. Merge map file with final_df
+
+3. Grab ID's of each polygon in map file and retain them so we can merge
+map data with the tidied map dataset
+
+4. Remove observations beyond a certain longitude and latitude (not sure what 
+these are but they are definitely not part of the 50 U.S. states). Also filter
+out observations for Puerto Rico.
+
+5. Plot
+```{r}
+usa_map@data$GEOID <- as.numeric(as.character(usa_map@data$GEOID))
+
+usa_map_merged <- merge(usa_map, state_final_df, 
+                        by.x = 'GEOID', by.y = 'state_code')
+
+usa_map_merged$id <- sapply(slot(usa_map_merged,  "polygons"),
+                           function(x) slot(x, "ID"))
+
+usa_map_tidied <- tidy(usa_map_merged)
+
+usa_map_tidied <- merge(usa_map_tidied, usa_map_merged@data, by = "id",
+                        all.x = T)
+
+usa_map_tidied <- usa_map_tidied %>% 
+  filter(long < 0 & lat > 12) %>% 
+  filter(!(lat < 20 & long > -75))
+```
+
+
+##### Plot showing distribution of age-adjusted suicide rates
+```{r}
+ggplot() +
+  geom_polygon(data = usa_map_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group,
+                   fill = age_adjusted_rate),
+               color = 'black') +
+  labs(title = 'USA states and suicide rates') 
+```
+
+##### Plot of distribution of age-adjusted suicide rates in the 48 contiguous
+##### states and DC
+```{r}
+usa_map_tidied %>% 
+  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
+  geom_polygon(color = 'black') + 
+  #scale_fill_gradient2() +
+  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
+  theme_bw()
+```
