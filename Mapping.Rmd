@@ -18,6 +18,7 @@ library(ggplot2)
 library(broom)
 library(RColorBrewer)
 library(gridExtra)
+library(mapproj)
 ```
 
 This file contains code to generate maps of the distribution of the variables
@@ -99,17 +100,47 @@ ggplot() +
 ##### Plot of distribution of age-adjusted suicide rates in the 48 contiguous
 ##### states and DC
 ```{r}
-usa_map_tidied %>% 
+county_map <- usa_map_tidied %>% 
   filter(!(state == "Alaska" | state == "Hawaii")) %>% 
   ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
   geom_polygon(color = 'black') + 
   #scale_fill_gradient2() +
-  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
+  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494'),
+                       na.value = 'white') +
   theme_bw()
+
+county_map + coord_map('mercator')
+```
+
+##### Plot of county-level crude suicide rates in the 48 contiguous
+##### states and DC
+```{r}
+county_map <- usa_map_tidied %>% 
+  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = crude_rate)) +
+  geom_polygon(color = 'black') + 
+  scale_fill_gradient(na.value = 'white', low = '#a6bddb', high = '#016450') +
+  #scale_fill_gradientn(colours = c('#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594'),
+   #                    na.value = 'white') +
+  theme_bw()
+
+county_map + coord_map('mercator')
 ```
 
 
+##### Plot of county-level income inequality in the 48 contiguous states and DC
+```{r}
+county_map <- usa_map_tidied %>% 
+  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = gini)) +
+  geom_polygon(color = 'black') + 
+  scale_fill_gradient(low = '#ffffff', high = '#08306b') +
+  #scale_fill_gradientn(colours = c('#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594'),
+   #                    na.value = 'white') +
+  theme_bw()
 
+county_map + coord_map('mercator')
+```
 
 
 
@@ -172,14 +203,31 @@ ggplot() +
   labs(title = 'USA states and suicide rates') 
 ```
 
-##### Plot of distribution of age-adjusted suicide rates in the 48 contiguous
+##### Map of state-level crude suicide rates in the 48 contiguous
 ##### states and DC
 ```{r}
-usa_map_tidied %>% 
+state_map <- usa_map_tidied %>% 
   filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
+  ggplot(aes(x = long, y = lat, group = group, fill = crude_rate)) +
   geom_polygon(color = 'black') + 
   #scale_fill_gradient2() +
-  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
+  #scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
+  scale_fill_gradient(na.value = 'white', low = '#a6bddb', high = '#016450') +
   theme_bw()
+
+state_map + coord_map('mercator')
+```
+
+##### Map of state-level income inequality in the 48 contiguous states and DC
+```{r}
+state_map <- usa_map_tidied %>% 
+  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
+  ggplot(aes(x = long, y = lat, group = group, fill = gini)) +
+  geom_polygon(color = 'black') + 
+  #scale_fill_gradient2() +
+  #scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
+  scale_fill_gradient(na.value = 'white', low = '#f7fbff', high = '#08306b') +
+  theme_bw()
+
+state_map + coord_map('mercator')
 ```
