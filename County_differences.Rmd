@@ -1,0 +1,84 @@
+---
+title: "County_differences"
+author: "Felix Tran"
+date: "March 27, 2019"
+output: html_document
+---
+
+This file contains code for analyzing differences between included and excluded
+counties based on the independent variables used in regression analyses.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(ggridges)
+library(broom)
+library(gridExtra)
+library(readr)
+library(stats)
+```
+
+
+# Data import
+```{r}
+total_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  mutate(median_income = round(median_income / 10000, digits = 3)) %>% 
+  select(gini, contains("prop"), contains("median"), urban_rural_code, usable) %>% 
+  select(-contains("age_"), -contains("geriatric"), -contains("blue_collar"),
+         -contains("unemployed"))
+
+included_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  filter(usable == T) %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) 
+
+excluded_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  filter(usable == F | is.na(usable)) %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) 
+```
+
+
+# Main exposure and continuous covariates
+```{r}
+comp_results <- vector()
+for (i in 1:13) {
+  result <- t.test(unlist(total_df[which(total_df$usable == T), i]),
+                   unlist(total_df[which(total_df$usable == F), i]),
+                   mu = 0) %>% 
+    broom::tidy() %>% 
+    mutate(p.value = round(p.value, digits = 3)) %>% 
+    mutate(variable = colnames(total_df[ , i])) %>% 
+    select(variable, everything()) %>% 
+    rename(included = estimate1,
+           excluded = estimate2)
+  comp_results <- rbind(comp_results, result)
+}
+
+comp_results 
+```
+
+# Urbanicity
+```{r}
+included_counts <- included_df %>% 
+  group_by(urban_rural_code) %>% 
+  summarize(counts = n())
+
+excluded_counts <- excluded_df %>% 
+  group_by(urban_rural_code) %>% 
+  summarize(counts = n())
+
+M <- as.table(rbind(included_counts$counts, excluded_counts$counts))
+dimnames(M) <- list(status = c("Included", "Excluded"),
+                    urbanicity = c("Urban", "In-between", "Rural"))
+chisq.test(M)
+M
+```
+
+
+
+

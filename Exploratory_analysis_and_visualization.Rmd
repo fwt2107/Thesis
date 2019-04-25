@@ -42,6 +42,8 @@ suppressed_num <- length(which(final_df$suppressed == T))
 unreliable_num <- length(which(final_df$unreliable == T))
 ```
 
+
+
 # Exposure data - Visualization
 
 Looking at the distribution of gini coefficients across all counties
@@ -66,7 +68,9 @@ against a hypothetical normal curve")
 ```
 
 
+
 # Outcome data - Descriptive/summary statistics and visualizations
+
 1 assumption of linear regression is that the residuals/error terms are normally
 distributed. This assumption would be violated if the distribution of
 age-adjusted suicide rates is not normally distributed. Therefore checking the
@@ -74,6 +78,7 @@ distribution of the included outcome data is important.
 
 
 ### Summary and descriptive statistics 
+
 Out of the 3142 counties in the US, `r usable_num` have age-adjusted suicide 
 rates for the timeframe 2012-2016 that are usable. The remaining 
 `r not_usable_num` are either suppressed (`r suppressed_num`) or unreliable 
@@ -98,6 +103,8 @@ options(tibble.print_max = Inf)
 print(excluded_df)
 # write_csv(excluded_df, path = './Cleaned data/County/excluded_df.csv')
 ```
+
+
 
 ### Plotting
 ```{r excluded outcomes plotting, echo = F, fig.height = 8}
@@ -130,32 +137,15 @@ excluded_df %>%
        from analysis",
        y = "Proportion (%)",
        x = "State")
-
-
 ```
 
-```{r outcome plotting, echo = F}
+
+
+# Histogram of usable suicide rates with a distribution curve of sample drawn 
+# from a normal distribution
+```{r}
 # Sample 1684 observations from a hypothetical normal distribution with the 
 #  same mean and standard deviation as our actual sample of usable suicide rates
-set.seed(23)
-normal_df <- tibble(
-  observation = c(1:usable_num),
-  rates = rnorm(usable_num, summary_stats$mean, summary_stats$sd)) 
-
-
-# Histogram and normal curve
-ggplot() +
-  geom_histogram(data = final_df, aes(x = age_adjusted_rate),
-                 alpha = 0.6, binwidth = 1) +
-  geom_density(data = normal_df, aes(x = rates, stat(count)),
-               color = 'red', size = 1) +
-  theme_minimal() +
-  labs(title = "Histogram of usable age-adjusted suicide rates 
-against a hypothetical normal curve")
-```
-
-Histogram of age-unadjusted suicide rates
-```{r}
 summary_stats <- final_df %>% 
   summarize(mean = mean(crude_rate, na.rm = T),
             sd = sd(crude_rate, na.rm = T))
@@ -174,6 +164,29 @@ ggplot() +
                color = 'red', size = 1) +
   theme_minimal() +
   labs(title = "Histogram of crude suicide rates against a hypothetical normal curve")
+```
+
+
+Histogram of state-level uandjusted suicide rates
+```{r}
+summary_stats <- state_df %>% 
+  summarize(mean = mean(crude_rate, na.rm = T),
+            sd = sd(crude_rate, na.rm = T))
+
+set.seed(23)
+normal_df <- tibble(
+  observation = c(1:nrow(state_df)),
+  rates = rnorm(nrow(state_df), summary_stats$mean, summary_stats$sd)) 
+
+
+# Histogram and normal curve
+ggplot() +
+  geom_histogram(data = state_df, aes(x = crude_rate),
+                 alpha = 0.6, binwidth = 2) +
+  geom_density(data = normal_df, aes(x = rates, stat(count)),
+               color = 'red', size = 1) +
+  theme_minimal() +
+  labs(title = "Histogram of state-level crude suicide rates against a hypothetical normal curve")
 ```
 
 
@@ -233,20 +246,3 @@ handful of outliers, but I feel the association as a whole won't be changed
 by these outliers. Asides from collapsing urban_rural_code into 3 categories
 since 1 category has very few observations compared to the rest, I won't
 transform the covariates.
-
-
-### State-level 
-```{r}
-state_df %>% 
-  ggplot(aes(x = ffl_per_100000, y = crude_rate)) +
-  geom_point() +
-  geom_smooth(method = lm)
-
-state_df %>% 
-  ggplot(aes(x = ffl_per_100000, y = age_adjusted_rate)) +
-  geom_point() +
-  geom_smooth(method = lm)
-```
-
-
-

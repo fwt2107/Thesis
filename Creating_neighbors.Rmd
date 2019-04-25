@@ -1,0 +1,107 @@
+---
+title: "Creating neighbors"
+author: "Felix Tran"
+date: "January 31, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggridges)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(broom)
+library(RColorBrewer)
+library(gridExtra)
+library(readr)
+library(spdep)
+```
+
+This file contains code for creating and labeling neighbors for the spatial
+data.
+
+# County
+```{r}
+county_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
+
+county_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+county_map <- county_map[which(as.integer(as.character(county_map$GEOID)) %in% 
+                           county_df$county_code), ]
+county_map <- county_map[order(as.integer(as.character(county_map$GEOID))), ]
+```
+
+```{r}
+neigh_tib <- tibble(
+  neighbors = poly2nb(county_map),
+  county_code = county_df$county_code
+)
+```
+
+```{r}
+calc_neigh_gini <- function(neigh_vector) {
+  total_gini <- 0
+  num_neighbors <- length(neigh_vector)
+  
+  for (i in 1:num_neighbors) {
+    total_gini <- total_gini + 
+      county_df$gini[neigh_vector[i]]
+  }
+  
+  neigh_gini <- round(total_gini / num_neighbors, digits = 4)
+  neigh_gini
+}
+
+county_df <- county_df %>% 
+  left_join(., neigh_tib, by = "county_code") %>% 
+  mutate(neigh_gini = purrr::map(neighbors, calc_neigh_gini))
+```
+
+
+# State
+```{r}
+usa_map <- readOGR(dsn = 'cb_2016_us_state_500k',
+                   layer = 'cb_2016_us_state_500k',
+                   verbose = T)
+usa_map <- usa_map[-which(usa_map$NAME %in% 
+                            c('American Samoa',
+                              'Commonwealth of the Northern Mariana Islands',
+                              'Guam', 
+                              'United States Virgin Islands',
+                              'Puerto Rico')),]
+usa_map <- usa_map[order(usa_map$NAME), ]
+
+head(usa_map@data)
+
+state_final_df <- readr::read_csv('./Cleaned data/State/state_final_df.csv')
+```
+
+```{r}
+neigh_tib <- tibble(
+  neighbors = poly2nb(usa_map),
+  state_code = state_final_df$state_code
+)
+```
+
+```{r}
+calc_neigh_gini <- function(neigh_vector) {
+  total_gini <- 0
+  num_neighbors <- length(neigh_vector)
+  
+  for (i in 1:num_neighbors) {
+    total_gini <- total_gini + 
+      state_final_df$gini[neigh_vector[i]]
+  }
+  
+  neigh_gini <- round(total_gini / num_neighbors, digits = 4)
+  neigh_gini
+}
+
+state_final_df <- state_final_df %>% 
+  left_join(., neigh_tib, by = "state_code") %>% 
+  mutate(neigh_gini = purrr::map(neighbors, calc_neigh_gini))
+```

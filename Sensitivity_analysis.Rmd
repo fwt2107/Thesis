@@ -1,0 +1,236 @@
+---
+title: "Sensitivity_analysis"
+author: "Felix Tran"
+date: "April 3, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+This file contains code for sensitivity analysis of including/excluding counties
+with unreliable suicide rates.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(multilevel)
+library(tidyverse)
+library(ggridges)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(broom)
+library(RColorBrewer)
+library(gridExtra)
+library(readr)
+library(spdep)
+library(GWmodel)
+library(mapproj)
+library(RANN)
+library(rsaeGWR)
+```
+
+
+# Read in data (Datasets, maps)
+```{r}
+county_df <- readr::read_csv('./Cleaned data/County/final_df.csv') %>% 
+  mutate(gini = gini * 100) %>% 
+  mutate(median_income = round(median_income / 10000, digits = 3)) %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  arrange(county_code)
+
+
+county_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+county_map <- county_map[which(as.integer(as.character(county_map$GEOID)) %in% 
+                           county_df$county_code), ]
+county_map <- county_map[order(as.integer(as.character(county_map$GEOID))), ]
+
+
+nation_map <- readOGR(dsn = 'cb_2016_us_state_500k',
+                   layer = 'cb_2016_us_state_500k',
+                   verbose = T)
+```
+
+
+# Merge data
+```{r}
+county_map@data$GEOID <- as.numeric(as.character(county_map@data$GEOID))
+
+county_map_merged <- merge(county_map, county_df, 
+                        by.x = 'GEOID', by.y = 'county_code')
+
+county_map_merged$id <- sapply(slot(county_map_merged,  "polygons"),
+                           function(x) slot(x, "ID"))
+
+county_map_merged <- county_map_merged[which(county_map_merged@data$suppressed == F), ]
+```
+
+# GWR analyses
+```{r}
+gwr_result <- gwr.basic(crude_rate ~ gini + median_age + below_hs_prop + 
+                          college_prop + male_prop + black_prop + native_prop + 
+                          asian_prop + hispanic_prop + urban_rural_code + unemployed_prop + 
+                          median_income, 
+                        data = county_map_merged, adaptive = T, 
+                        bw = 142, kernel = 'boxcar')
+gwr_result
+
+gwr_df <- gwr_result$SDF
+
+
+
+gwr_df$id <- sapply(slot(gwr_df,  "polygons"), function(x) slot(x, "ID"))
+
+gwr_tidied <- tidy(gwr_df)
+gwr_tidied <- merge(gwr_tidied, gwr_df@data, by = "id",
+                        all.x = T)
+
+# Filling in remaining parts of the map
+county_map@data$GEOID <- as.numeric(as.character(county_map@data$GEOID))
+
+county_map_merged <- merge(county_map, county_df, 
+                        by.x = 'GEOID', by.y = 'county_code')
+
+county_map_merged$id <- sapply(slot(county_map_merged,  "polygons"),
+                           function(x) slot(x, "ID"))
+
+county_map_merged <- county_map_merged[which(county_map_merged@data$suppressed == T), ]
+
+county_tidied <- tidy(county_map_merged)
+
+county_tidied <- merge(county_tidied, county_map_merged@data, by = "id",
+                        all.x = T) %>% 
+  dplyr::select(id, long, lat, order, hole, piece, group)
+```
+
+
+# Save shapefile of GWR results and use QGIS to create shapefile with 
+# significant clusters
+```{r}
+writeSpatialShape(gwr_df, 'sensitivity_shapefile')
+```
+
+
+# Prepare outlines of significant clusters for mapping
+```{r}
+sig_clusters <- readOGR(dsn = '.',
+                   layer = 'sensitivity_dissolved_clusters',
+                   verbose = T) %>% 
+  tidy() %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60)
+
+```
+
+
+# Prepare files for ggplot
+```{r}
+gwr_tidied <- gwr_tidied %>%
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) %>% 
+  mutate(gini_tv_bin = if_else(abs(gini_TV) > 1.96, T, F))
+
+county_tidied <- county_tidied %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) %>% 
+  mutate(gini = NA) %>% 
+  mutate(gini_tv_bin = NA)
+
+nation_tidied <- tidy(nation_map) %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60)
+
+map_long <- c(gwr_tidied$long, county_tidied$long)
+map_lat <- c(gwr_tidied$lat, county_tidied$lat)
+```
+
+
+# Map the results
+```{r}
+# Beta coefficients
+ggplot()  + 
+  geom_polygon(data = gwr_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group,
+                            fill = gwr_tidied$gini)) +
+  geom_polygon(data = county_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group)) +
+  geom_polygon(data = sig_clusters,
+               aes(x = long,
+                   y = lat,
+                   group = group),
+               color = 'black',
+               fill = NA,
+               size = 4) +
+  geom_polygon(data = nation_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group),
+                            color = 'black',
+                        fill = NA,
+                        size = .1) +
+  scale_fill_gradient2() +
+  labs(fill = expression(beta),
+       x = "Longitude",
+       y = "Latitude") +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001)) +
+  theme(legend.key.size = unit(3, "lines"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25),
+        plot.margin = unit(c(.1, .1, .1, .1), 'cm'))
+  
+
+# T-values
+ggplot() + geom_polygon(data = gwr_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group,
+                            fill = gwr_tidied$gini_tv_bin)) +
+  geom_polygon(data = county_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group)) +
+  geom_polygon(data = nation_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group),
+                            color = 'black',
+                        fill = NA,
+                        size = .1) +
+  labs(x = "Longitude",
+       y = "Latitude") +
+  scale_fill_discrete(na.value = "grey50",
+                      breaks = c(T, F),
+                      labels = c('Significant', 'Not significant'),
+                      name = expression(paste('Statistical significance (',
+                                   italic(p), ' < 0.05)'))) +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001)) +
+  theme(legend.key.size = unit(3, "lines"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25),
+        plot.margin = unit(c(.1, .1, .1, .1), 'cm'))
+
+```

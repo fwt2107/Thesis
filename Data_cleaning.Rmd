@@ -62,21 +62,25 @@ was suppressed or unreliable and therefore unusable, or not.
 4. Converted the usable crude and age-adjusted rates into numeric
 ```{r outcome data}
 clean_rates <- function(x) {
-  unusable <- which(str_detect(x, "Unreliable") | 
-                      str_detect(x, "Suppressed"))
+  unusable <- which(str_detect(x, "Suppressed"))
+  unrel <- which(str_detect(x, "Unreliable"))
   x[unusable] <- NA
+  
+  for (i in 1:length(unrel)) {
+    x[unrel[i]] <- str_sub(x[unrel[i]], end = 5)
+  }
   x
 }
 
 cdc_df <- readr::read_tsv('./Raw data/County/Compressed Mortality, 1999-2016.txt') %>% 
   janitor::clean_names() %>% 
   drop_na(county) %>% 
-  select(-notes) %>% 
+  dplyr::select(-notes) %>% 
   mutate(suppressed = if_else(deaths == "Suppressed", T, F),
          unreliable = 
            if_else(str_detect(crude_rate, "Unreliable"), T, F),
          usable = !(suppressed | unreliable)) %>% 
-  select(county_code, 
+  dplyr::select(county_code, 
          age_adjusted_rate, 
          crude_rate,
          suppressed,
@@ -188,14 +192,18 @@ edu_df <- read_csv('./Raw data/County/ACS 2012-2016 Education.csv') %>%
   select(county_code = geo_id2,
          hc02_est_vc09,
          hc02_est_vc10,
-         hs_prop = hc02_est_vc11,
+         hc02_est_vc11,
          hc02_est_vc12,
          hc02_est_vc13,
-         college_prop = hc02_est_vc18) %>% 
+         hc02_est_vc14,
+         hc02_est_vc15) %>% 
   mutate(county_code = as.integer(county_code),
          below_hs_prop = as.numeric(hc02_est_vc09) + as.numeric(hc02_est_vc10),
-         some_college_prop = as.numeric(hc02_est_vc12) + as.numeric(hc02_est_vc13)) %>% 
-  select(-c(hc02_est_vc09, hc02_est_vc10, hc02_est_vc12, hc02_est_vc13))
+         hs_prop = as.numeric(hc02_est_vc11) + as.numeric(hc02_est_vc12),
+         college_prop = as.numeric(hc02_est_vc13) + as.numeric(hc02_est_vc14) +
+           as.numeric(hc02_est_vc15)) %>% 
+  select(-c(hc02_est_vc09, hc02_est_vc10, hc02_est_vc11, hc02_est_vc12, 
+            hc02_est_vc13, hc02_est_vc14, hc02_est_vc15))
 edu_df <- edu_df[-1, ]
 ```
 

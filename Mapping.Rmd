@@ -28,13 +28,17 @@ used in my thesis.
 
 Read in the shp file for US counties and the thesis dataset
 ```{r}
-usa_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+county_map <- readOGR(dsn = 'cb_2016_us_county_500k',
                    layer = 'cb_2016_us_county_500k',
                    verbose = T)
 
-head(usa_map@data)
-
 final_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
+unreliable_rates <- which(final_df$unreliable == T)
+final_df$crude_rate[unreliable_rates] <- NA
+
+nation_map <- readOGR(dsn = 'cb_2016_us_state_500k',
+                   layer = 'cb_2016_us_state_500k',
+                   verbose = T)
 ```
 
 1. Convert the FIPS code into numeric type to allow merging with final_df.
@@ -50,27 +54,31 @@ out observations for Puerto Rico.
 
 5. Plot
 ```{r}
-usa_map@data$GEOID <- as.numeric(as.character(usa_map@data$GEOID))
+county_map@data$GEOID <- as.numeric(as.character(county_map@data$GEOID))
 
-usa_map_merged <- merge(usa_map, final_df, by.x = 'GEOID', by.y = 'county_code')
+county_map_merged <- merge(county_map, final_df, by.x = 'GEOID', by.y = 'county_code')
 
-usa_map_merged$id <- sapply(slot(usa_map_merged,  "polygons"),
+county_map_merged$id <- sapply(slot(county_map_merged,  "polygons"),
                            function(x) slot(x, "ID"))
 
-usa_map_tidied <- tidy(usa_map_merged)
+county_map_tidied <- tidy(county_map_merged)
 
-usa_map_tidied <- merge(usa_map_tidied, usa_map_merged@data, by = "id",
-                        all.x = T)
+county_map_tidied <- merge(county_map_tidied, county_map_merged@data, by = "id",
+                        all.x = T) %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) 
 
-usa_map_tidied <- usa_map_tidied %>% 
-  filter(long < 0 & lat > 12) %>% 
-  filter(!(lat < 20 & long > -75))
+nation_tidied <- tidy(nation_map) %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) 
 ```
 
-##### Plot of counties with usable rates vs. unusable rates
+
+
+# Plot of counties with usable rates vs. unusable rates
 ```{r}
 ggplot() +
-  geom_polygon(data = usa_map_tidied,
+  geom_polygon(data = county_map_tidied,
                aes(x = long,
                    y = lat,
                    group = group,
@@ -80,154 +88,80 @@ ggplot() +
   labs(title = 'USA counties and suicide rates',
        fill = 'Usable suicide rate') +
   theme_void()
-
-# counties_plot
-# ggsave('USA counties.jpg', counties_plot)
 ```
 
-##### Plot showing distribution of age-adjusted suicide rates
+
+
+# Plot of county-level suicide rates in the 48 contiguous states and DC
+
+Map was exported with dimensions 3300x2550
 ```{r}
-ggplot() +
-  geom_polygon(data = usa_map_tidied,
+map_long <- county_map_tidied$long
+map_lat <- county_map_tidied$lat
+
+ggplot() + 
+  geom_polygon(data = county_map_tidied,
                aes(x = long,
                    y = lat,
                    group = group,
-                   fill = age_adjusted_rate),
+                   fill = crude_rate)) +
+  geom_polygon(data = nation_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group),
+               fill = NA,
+               size = 0.5,
                color = 'black') +
-  labs(title = 'USA counties and suicide rates') 
-```
-
-##### Plot of distribution of age-adjusted suicide rates in the 48 contiguous
-##### states and DC
-```{r}
-county_map <- usa_map_tidied %>% 
-  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = age_adjusted_rate)) +
-  geom_polygon(color = 'black') + 
-  #scale_fill_gradient2() +
-  scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494'),
-                       na.value = 'white') +
-  theme_bw()
-
-county_map + coord_map('mercator')
-```
-
-##### Plot of county-level crude suicide rates in the 48 contiguous
-##### states and DC
-```{r}
-county_map <- usa_map_tidied %>% 
-  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = crude_rate)) +
-  geom_polygon(color = 'black') + 
-  scale_fill_gradient(na.value = 'white', low = '#a6bddb', high = '#016450') +
-  #scale_fill_gradientn(colours = c('#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594'),
-   #                    na.value = 'white') +
-  theme_bw()
-
-county_map + coord_map('mercator')
-```
-
-
-##### Plot of county-level income inequality in the 48 contiguous states and DC
-```{r}
-county_map <- usa_map_tidied %>% 
-  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = gini)) +
-  geom_polygon(color = 'black') + 
-  scale_fill_gradient(low = '#ffffff', high = '#08306b') +
-  #scale_fill_gradientn(colours = c('#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#084594'),
-   #                    na.value = 'white') +
-  theme_bw()
-
-county_map + coord_map('mercator')
+  scale_fill_gradient(low = '#56B1F7', high = '#132B43') +
+  labs(fill = "Suicide rate per\n 100,000 people",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001)) +
+  theme(legend.key.size = unit(3, "lines"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25),
+        plot.margin = unit(c(.1, .1, .1, .1), 'cm'))
 ```
 
 
 
-
-
-# Plot of state-level suicide rates
-
-Read in the shp file for US counties and the thesis dataset
+# Plot of county-level income inequality in the 48 contiguous states and DC
 ```{r}
-usa_map <- readOGR(dsn = 'cb_2016_us_state_500k',
-                   layer = 'cb_2016_us_state_500k',
-                   verbose = T)
-
-head(usa_map@data)
-
-state_final_df <- readr::read_csv('./Cleaned data/State/state_final_df.csv')
-```
-
-1. Convert the FIPS code into numeric type to allow merging with final_df.
-
-2. Merge map file with final_df
-
-3. Grab ID's of each polygon in map file and retain them so we can merge
-map data with the tidied map dataset
-
-4. Remove observations beyond a certain longitude and latitude (not sure what 
-these are but they are definitely not part of the 50 U.S. states). Also filter
-out observations for Puerto Rico.
-
-5. Plot
-```{r}
-usa_map@data$GEOID <- as.numeric(as.character(usa_map@data$GEOID))
-
-usa_map_merged <- merge(usa_map, state_final_df, 
-                        by.x = 'GEOID', by.y = 'state_code')
-
-usa_map_merged$id <- sapply(slot(usa_map_merged,  "polygons"),
-                           function(x) slot(x, "ID"))
-
-usa_map_tidied <- tidy(usa_map_merged)
-
-usa_map_tidied <- merge(usa_map_tidied, usa_map_merged@data, by = "id",
-                        all.x = T)
-
-usa_map_tidied <- usa_map_tidied %>% 
-  filter(long < 0 & lat > 12) %>% 
-  filter(!(lat < 20 & long > -75))
-```
-
-
-##### Plot showing distribution of age-adjusted suicide rates
-```{r}
-ggplot() +
-  geom_polygon(data = usa_map_tidied,
+ggplot() + 
+  geom_polygon(data = county_map_tidied,
                aes(x = long,
                    y = lat,
                    group = group,
-                   fill = age_adjusted_rate),
+                   fill = gini)) +
+  geom_polygon(data = nation_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group),
+               fill = NA,
+               size = 0.1,
                color = 'black') +
-  labs(title = 'USA states and suicide rates') 
-```
-
-##### Map of state-level crude suicide rates in the 48 contiguous
-##### states and DC
-```{r}
-state_map <- usa_map_tidied %>% 
-  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = crude_rate)) +
-  geom_polygon(color = 'black') + 
-  #scale_fill_gradient2() +
-  #scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
-  scale_fill_gradient(na.value = 'white', low = '#a6bddb', high = '#016450') +
-  theme_bw()
-
-state_map + coord_map('mercator')
-```
-
-##### Map of state-level income inequality in the 48 contiguous states and DC
-```{r}
-state_map <- usa_map_tidied %>% 
-  filter(!(state == "Alaska" | state == "Hawaii")) %>% 
-  ggplot(aes(x = long, y = lat, group = group, fill = gini)) +
-  geom_polygon(color = 'black') + 
-  #scale_fill_gradient2() +
-  #scale_fill_gradientn(colours = c('#c7e9b4', '#7fcdbb', '#41b6c4', '#2c7fb8', '#253494')) +
-  scale_fill_gradient(na.value = 'white', low = '#f7fbff', high = '#08306b') +
-  theme_bw()
-
-state_map + coord_map('mercator')
+  scale_fill_gradient(na.value = '#D3D3D3', low = '#56B1F7', high = '#132B43') +
+  labs(fill = "Gini coefficient",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_bw() +
+  theme(legend.title = element_text(size = 10),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8)) +
+  theme(legend.key.size = unit(0.75, "lines"),
+        legend.text = element_text(size = 8)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001))
 ```

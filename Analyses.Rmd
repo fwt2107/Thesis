@@ -4,27 +4,108 @@ author: "Felix Tran"
 date: "December 3, 2018"
 output: html_document
 ---
+This file contains code for running OLS regression analyses
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(data.table)
+library(tidyverse)
+library(ggridges)
+library(sp)
+library(rgdal)
+library(rgeos)
+library(ggplot2)
+library(broom)
+library(gridExtra)
+library(spdep)
+library(lme4)
 ```
 
-This file contains code for running statistical analyses
+
 
 # Data import
 
-Read in the dataset and only look at counties with usable suicide rates
+First, have to calculate the average gini of neighboring counties using the code
+from Creating_neighbors.Rmd
 ```{r}
-final_df <- readr::read_csv('./Cleaned data/County/final_df.csv') %>% 
-  filter(usable == T) %>% 
-  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
-  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
-  select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
-         college_prop, poverty_prop, urban_rural_code, everything())
+county_df <- readr::read_csv('./Cleaned data/County/final_df.csv')
+
+county_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+county_map <- county_map[which(as.integer(as.character(county_map$GEOID)) %in% 
+                           county_df$county_code), ]
+county_map <- county_map[order(as.integer(as.character(county_map$GEOID))), ]
 ```
+
+```{r}
+neigh_tib <- tibble(
+  neighbors = poly2nb(county_map),
+  county_code = county_df$county_code
+)
+```
+
+```{r}
+calc_neigh_gini <- function(neigh_vector) {
+  total_gini <- 0
+  num_neighbors <- length(neigh_vector)
+  
+  for (i in 1:num_neighbors) {
+    total_gini <- total_gini + 
+      county_df$gini[neigh_vector[i]]
+  }
+  
+  neigh_gini <- round(total_gini / num_neighbors, digits = 4)
+  neigh_gini
+}
+
+county_df <- county_df %>% 
+  left_join(., neigh_tib, by = "county_code") %>% 
+  mutate(neigh_gini = purrr::map(neighbors, calc_neigh_gini))
+
+for (i in 1:nrow(county_df)) {
+  if (length(unlist(county_df$neigh_gini[i])) > 0)
+    county_df$neigh_gini[i] <- unlist(county_df$neigh_gini[i])
+  else
+    county_df$neigh_gini[i] <- 0
+}
+
+county_df$neigh_gini <- unlist(county_df$neigh_gini)
+```
+
+Read in state-level data for multilevel model
+```{r}
+state_df <- readr::read_csv('./Cleaned data/State/state_final_df.csv')
+
+get_state_gini <- function(county_id) {
+  state_df$gini[which(state_df$state_code == as.integer(county_id / 1000))]
+}
+
+county_df <- county_df %>% 
+  mutate(state_gini = purrr::map(county_code, get_state_gini))
+
+county_df$state_gini <- unlist(county_df$state_gini)
+```
+
+
+Only look at counties with usable suicide rates
+```{r}
+final_df <- county_df %>% 
+  filter(usable == T) %>% 
+  mutate(gini = gini * 100) %>%
+  # mutate(neigh_gini = neigh_gini * 100) %>%
+  # mutate(state_gini = state_gini * 100) %>%
+  mutate(median_income = round(median_income / 10000, digits = 3)) %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) 
+# %>% 
+#   select(gini, age_adjusted_rate, male_prop, white_prop, geriatric_prop,
+#          college_prop, poverty_prop, urban_rural_code, everything())
+```
+
+
 
 # OLS Regression
 
@@ -33,12 +114,12 @@ Starting with a simple ordinary least squares (OLS) linear regression modeling
 the relation between age-adjusted suicide rates and income inequality as 
 measured by the gini coefficient among US counties
 ```{r}
-crude_model <- lm(data = final_df, age_adjusted_rate ~ gini) %>% 
+crude_model <- lm(data = final_df, crude_rate ~ gini) %>% 
   broom::tidy() %>% 
   mutate(estimate = round(estimate, digits = 2),
          std.error = round(std.error, digits = 2),
          statistic = round(statistic, digits = 2),
-         p.value = round(p.value, digits = 2)) %>% 
+         p.value = round(p.value, digits = 3)) %>% 
   mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
          upper_ci = round(estimate + 1.96*std.error, digits = 2),
          ci = str_c(lower_ci, upper_ci, sep = ", "))
@@ -46,59 +127,121 @@ crude_model <- lm(data = final_df, age_adjusted_rate ~ gini) %>%
 crude_model
 ```
 
+
 ##### Scatterplot of main exposure and outcome
 ```{r}
 final_df %>% 
-  ggplot(aes(x = gini, y = age_adjusted_rate)) +
+  ggplot(aes(x = gini, y = crude_rate)) +
   geom_point(alpha = 0.5) +
-  geom_smooth(alpha = 0.75)
+  geom_smooth(method = lm, alpha = 0.75)
 ```
 
-### Models with each covariate to assess confounding
+
+
+### Model with main exposure and average gini coefficient of neighboring counties
 ```{r}
-ols_reg <- function(df) {
-  result = lm(data = df, df[ , 2] ~ df[ , 1] + df[, 3])
-  result = result %>% 
-    broom::tidy() %>% 
-    mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
-           upper_ci = round(estimate + 1.96*std.error, digits = 2),
-           ci = str_c(lower_ci, upper_ci, sep = ", "))
-  result
-}
-
-create_model <- function(covariate_index) {
-  cbind(final_df$gini, final_df$age_adjusted_rate, final_df[, covariate_index])
-}
-
-ols_reg_results <- tibble(
-  model = map(3:8, create_model),
-  name = c('sex', 'race', 'age', 'education', 'poverty', 'urban_rural'),
-  output = map(model, ols_reg)
-)
-
-results_table <- rbindlist(ols_reg_results$output) %>% 
-  mutate(term = if_else(term == "df[, 1]", "gini", term)) %>% 
+model_two <- lm(data = final_df, crude_rate ~ gini + neigh_gini) %>% 
+  broom::tidy() %>% 
   mutate(estimate = round(estimate, digits = 2),
          std.error = round(std.error, digits = 2),
          statistic = round(statistic, digits = 2),
-         p.value = round(p.value, digits = 2))
+         p.value = round(p.value, digits = 3)) %>% 
+  mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
+         upper_ci = round(estimate + 1.96*std.error, digits = 2),
+         ci = str_c(lower_ci, upper_ci, sep = ", "))
 
-model_terms <- c('sex', 'race', 'age', 'education', 'poverty',
-                 'urban_rural (in-between)', 'urban_rural (rural)')
-i.2 <- 1
+model_two
+```
 
-for (i in 1:nrow(results_table)) {
-  if (str_detect(results_table$term[i], pattern = "df") ==  T) {
-    results_table$term[i] <- model_terms[i.2]
-    i.2 <- i.2 + 1
-  }
-}
 
-results_table <- rbind(crude_model, results_table) %>% 
+
+### Model with main exposure, average gini of neighbors, and state gini
+```{r}
+model_three <- lme(data = final_df, crude_rate ~ gini + neigh_gini +
+                      state_gini, random = ~1|state) 
+
+summary(model_three)
+```
+
+
+Testing multicollinearity
+```{r}
+gini_df <- final_df %>% 
+  dplyr::select(gini, neigh_gini, state_gini)
+
+gini_multicol_matrix <- round(stats::cor(gini_df), digits = 3)
+gini_multicol_matrix
+```
+
+
+
+### Model with main exposure and covariates
+```{r}
+model_four <- lm(data = final_df, crude_rate ~ gini + 
+                   median_age +
+                   below_hs_prop + college_prop + 
+                   male_prop + 
+                   black_prop + native_prop + asian_prop + hispanic_prop + 
+                   urban_rural_code +
+                   unemployed_prop +
+                   median_income) %>% 
+  broom::tidy() %>% 
   mutate(estimate = round(estimate, digits = 2),
          std.error = round(std.error, digits = 2),
          statistic = round(statistic, digits = 2),
-         p.value = round(p.value, digits = 2))
+         p.value = round(p.value, digits = 3)) %>% 
+  mutate(lower_ci = round(estimate - 1.96*std.error, digits = 2),
+         upper_ci = round(estimate + 1.96*std.error, digits = 2),
+         ci = str_c(lower_ci, upper_ci, sep = ", "))
 
-write_csv(results_table, path = './Tables/Model fitting results.csv')
+model_four
+```
+
+# Testing significance for categorical variable
+```{r}
+l_full <- logLik(lm(data = final_df, crude_rate ~ gini + 
+                   median_age +
+                   below_hs_prop + college_prop + 
+                   male_prop + 
+                   black_prop + native_prop + asian_prop + hispanic_prop + 
+                   # urban_rural_code +
+                   median_income))
+
+l_restricted <- logLik(lm(data = final_df, crude_rate ~ gini + 
+                   median_age +
+                   below_hs_prop + college_prop + 
+                   male_prop + 
+                   black_prop + native_prop + asian_prop + hispanic_prop + 
+                   unemployed_prop +
+                   median_income))
+
+1 - pchisq(2*(l_full - l_restricted), df = 2)
+```
+
+
+
+
+# Multilevel model - county and state gini
+```{r}
+summary(lmer(crude_rate ~ gini + (1 | state), data = final_df, REML = F))
+```
+
+
+# Multilevel model with confounders
+```{r}
+# summary(lmer(crude_rate ~ gini + state_gini + (gini | state) + median_age + 
+#                below_hs_prop + college_prop + male_prop + black_prop + 
+#                native_prop + asian_prop + hispanic_prop + urban_rural_code +
+#                median_income, 
+#              data = final_df, REML = F))
+
+summary(lmer(crude_rate ~ gini + (1 | state) +
+               median_age +
+               below_hs_prop + college_prop +
+               male_prop +
+               black_prop + native_prop + asian_prop + hispanic_prop +
+               urban_rural_code +
+               unemployed_prop +
+               median_income,
+             data = final_df, REML = T))
 ```

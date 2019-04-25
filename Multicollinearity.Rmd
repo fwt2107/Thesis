@@ -1,0 +1,104 @@
+---
+title: "Multicollinearity"
+author: "Felix Tran"
+date: "December 25, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(stats)
+library(readr)
+```
+
+This file contains code to construct a multicollinearity matrix to assess 
+collinearity among the covariates/exposure.
+
+# Multicollinearity matrix - County
+
+1. Read in the county dataset
+
+2. Keep only the covariates to assess multicollinearity
+
+3. Save result as a csv
+```{r}
+county_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  filter(usable == T) %>% 
+  select(gini,
+         median_age, age_15_24_prop, age_25_44_prop, age_45_64_prop, geriatric_prop,
+         white_prop, black_prop, native_prop, asian_prop, hispanic_prop,
+         median_income, poverty_prop, unemployed_prop, blue_collar_prop,
+         below_hs_prop, hs_prop, some_college_prop, college_prop
+         )
+
+county_multicol_matrix <- round(cor(county_df), digits = 3)
+write.csv(county_multicol_matrix, file = './Tables/Multicollinearity table.csv')
+```
+
+
+# Multicollinearity matrix - State
+1. Read in the county dataset
+
+2. Keep only the covariates to assess multicollinearity
+
+3. Urban-ruralness of a state can be calculated by the proportion of counties
+with a particular NCHS urban-rural rode within a state. This calculated and 
+merged wtih the state dataset
+
+3. Save result as a csv
+```{r}
+urban_rural_df <- read_csv('./Cleaned data/County/final_df.csv') %>% 
+  select(state, urban_rural_code) %>% 
+  mutate(urban_rural_recoded = as.integer((urban_rural_code - 1) / 2)) %>% 
+  group_by(state, urban_rural_recoded) %>% 
+  summarize(counts = n()) %>% 
+  group_by(state) %>% 
+  mutate(county_total = sum(counts)) %>% 
+  ungroup() %>% 
+  mutate(proportion = round(counts / county_total, digits = 3)) %>% 
+  select(-counts, -county_total) %>% 
+  spread(key = urban_rural_recoded, value = proportion) %>% 
+  rename(rural_prop = '2',
+         urban_prop = '0',
+         in_between_prop = '1') %>% 
+  mutate(rural_prop = if_else(is.na(rural_prop), 0, rural_prop),
+         in_between_prop = if_else(is.na(in_between_prop), 0, in_between_prop),
+         urban_prop = if_else(is.na(urban_prop), 0, urban_prop))
+```
+
+```{r}
+state_df <- read_csv('./Cleaned data/State/state_final_df.csv') %>% 
+  select(gini,
+         median_age, age_15_24_prop, age_25_44_prop, age_45_64_prop, geriatric_prop,
+         white_prop, black_prop, native_prop, asian_prop, hispanic_prop,
+         median_income, poverty_prop, unemployed_prop, blue_collar_prop,
+         below_hs_prop, hs_prop, some_college_prop, college_prop, 
+         ffl_per_100000, 
+         state
+         )
+
+state_df <- left_join(state_df, urban_rural_df, by = 'state') %>% 
+  select(-state)
+```
+
+```{r}
+state_multicol_matrix <- round(cor(state_df), digits = 3)
+write.csv(state_multicol_matrix, file = './Tables/STATE_multicollinearity table.csv')
+```
+
+
+
+# Checking for potential differences in multicollinearity between levels
+
+Taking the variables the 2 levels have in common, we can examine if the 
+correlations between variables drastically differ by level. The level 
+(county or state) does not seem to drastically change the correlations between
+variables.
+```{r}
+diff_matrix <- as_data_frame(county_multicol_matrix) - 
+  as_data_frame(state_multicol_matrix[1:19, 1:19])
+```
+

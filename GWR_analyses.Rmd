@@ -1,0 +1,253 @@
+---
+title: "GWR_analyses"
+author: "Felix Tran"
+date: "February 13, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This file contains code for running geographically weighted regression (GWR) and
+plotting the results of the GWR analysis.
+
+# Load R packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(data.table)
+library(broom)
+library(RColorBrewer)
+library(gridExtra)
+library(GWmodel)
+library(mapproj)
+library(maptools)
+library(rgdal)
+```
+
+
+
+# Read in data (Datasets, maps)
+```{r}
+# Data
+county_df <- readr::read_csv('./Cleaned data/County/final_df.csv') %>% 
+  mutate(gini = gini * 100) %>% 
+  mutate(median_income = round(median_income / 10000, digits = 3)) %>% 
+  mutate(urban_rural_code = as.integer((urban_rural_code - 1) / 2)) %>% 
+  mutate(urban_rural_code = as.factor(urban_rural_code)) %>% 
+  arrange(county_code)
+
+
+# Maps (County-level and national)
+county_map <- readOGR(dsn = 'cb_2016_us_county_500k',
+                   layer = 'cb_2016_us_county_500k',
+                   verbose = T)
+county_map <- county_map[which(as.integer(as.character(county_map$GEOID)) %in% 
+                           county_df$county_code), ]
+county_map <- county_map[order(as.integer(as.character(county_map$GEOID))), ]
+
+county_map@data$GEOID <- as.numeric(as.character(county_map@data$GEOID))
+
+county_map_merged <- merge(county_map, county_df, 
+                        by.x = 'GEOID', by.y = 'county_code')
+
+county_map_merged$id <- sapply(slot(county_map_merged, "polygons"),
+                           function(x) slot(x, "ID"))
+
+county_map_merged <- county_map_merged[which(county_map_merged@data$usable == T), ]
+
+
+nation_map <- readOGR(dsn = 'cb_2016_us_state_500k',
+                   layer = 'cb_2016_us_state_500k',
+                   verbose = T)
+nation_map <- nation_map[-which(nation_map$NAME %in% 
+                            c('American Samoa',
+                              'Commonwealth of the Northern Mariana Islands',
+                              'Guam', 
+                              'United States Virgin Islands',
+                              'Puerto Rico')),]
+nation_map <- nation_map[order(nation_map$NAME), ]
+```
+
+
+
+# Perform GWR
+
+Testing different bw values, 102 was the smallest value in which all local
+regression equations were solvable.
+
+After performing GWR, I looked at the descriptive stats of the regression
+coefficients and prepared files for plotting in ggplot.
+```{r}
+# GWR
+gwr_result <- gwr.basic(crude_rate ~ gini + median_age + below_hs_prop + 
+                          college_prop + male_prop + black_prop + native_prop + 
+                          asian_prop + hispanic_prop + urban_rural_code + 
+                          unemployed_prop + median_income, 
+                        data = county_map_merged, adaptive = T, 
+                        bw = 102, kernel = 'boxcar')
+gwr_result
+
+gwr_df <- gwr_result$SDF
+
+mean(gwr_df@data$gini)
+mean(gwr_df@data$gini_SE)
+
+
+gwr_df$id <- sapply(slot(gwr_df,  "polygons"), function(x) slot(x, "ID"))
+
+gwr_tidied <- tidy(gwr_df)
+gwr_tidied <- merge(gwr_tidied, gwr_df@data, by = "id", all.x = T)
+
+
+# Prepare data from excluded counties for plotting in ggplot
+county_map@data$GEOID <- as.numeric(as.character(county_map@data$GEOID))
+
+county_map_merged <- merge(county_map, county_df, 
+                        by.x = 'GEOID', by.y = 'county_code')
+
+county_map_merged$id <- sapply(slot(county_map_merged,  "polygons"),
+                           function(x) slot(x, "ID"))
+
+county_map_merged <- county_map_merged[which(county_map_merged@data$usable == F), ]
+
+county_tidied <- tidy(county_map_merged)
+
+county_tidied <- merge(county_tidied, county_map_merged@data, by = "id",
+                        all.x = T) %>% 
+  dplyr::select(id, long, lat, order, hole, piece, group)
+```
+
+
+
+# Save shapefile of GWR results
+
+I saved the shapefile of GWR results. I then imported the shapefile in QGIS to 
+create a new shapefile of the statistically significant clusters.
+```{r}
+writeSpatialShape(gwr_df, 'gwr_shapefile')
+```
+
+
+
+# Load and prepare outlines of significant clusters for mapping
+```{r}
+sig_clusters <- readOGR(dsn = '.',
+                   layer = 'GWR_dissolved_clusters',
+                   verbose = T) %>% 
+  tidy() %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60)
+```
+
+
+# Prepare files for ggplot by limiting the map to only the 48 contiguous states
+```{r}
+gwr_tidied <- gwr_tidied %>%
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) %>% 
+  mutate(gini_tv_bin = if_else(abs(gini_TV) > 1.96, T, F))
+
+county_tidied <- county_tidied %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60) %>% 
+  mutate(gini = NA) %>% 
+  mutate(gini_tv_bin = NA)
+
+nation_tidied <- tidy(nation_map) %>% 
+  filter(lat < 50 & lat > 20) %>% 
+  filter(long > -130 & long < -60)
+
+map_long <- c(gwr_tidied$long, county_tidied$long)
+map_lat <- c(gwr_tidied$lat, county_tidied$lat)
+```
+
+
+
+# Map the results
+
+Maps were exported as images with dimensions 3300x2550
+```{r}
+# Beta coefficients
+ggplot()  + 
+  geom_polygon(data = gwr_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group,
+                            fill = gwr_tidied$gini)) +
+  geom_polygon(data = county_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group)) +
+  geom_polygon(data = sig_clusters,
+               aes(x = long,
+                   y = lat,
+                   group = group),
+               fill = NA,
+               color = 'black',
+               size = 4) +
+  geom_polygon(data = nation_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group),
+                            color = 'black',
+                        fill = NA,
+                        size = 1) +
+  scale_fill_gradient2() +
+  labs(fill = expression(beta),
+       x = "Longitude",
+       y = "Latitude") +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001)) +
+  theme(legend.key.size = unit(3, "lines"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25),
+        plot.margin = unit(c(.1, .1, .1, .1), 'cm'))
+  
+
+# T-values
+ggplot() + geom_polygon(data = gwr_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group,
+                            fill = gwr_tidied$gini_tv_bin)) +
+  geom_polygon(data = county_tidied,
+               aes(x = long,
+                   y = lat,
+                   group = group)) +
+  geom_polygon(data = nation_tidied,
+                        aes(x = long,
+                            y = lat,
+                            group = group),
+                            color = 'black',
+                        fill = NA,
+                        size = 1) +
+  labs(x = "Longitude",
+       y = "Latitude") +
+  scale_fill_discrete(na.value = "grey50",
+                      breaks = c(T, F),
+                      labels = c('Significant', 'Not significant'),
+                      name = expression(paste('Statistical significance (',
+                                   italic(p), ' < 0.05)'))) +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 25),
+        axis.title.y = element_text(size = 25),
+        axis.text.x = element_text(size = 20),
+        axis.text.y = element_text(size = 20)) +
+  coord_map('albers', 
+            lat0 = 30, lat1 = 40, 
+            xlim = c(min(map_long) - 0.0001, max(map_long) + 0.0001),
+            ylim = c(min(map_lat) - 0.0001, max(map_lat) + 0.0001)) +
+  theme(legend.key.size = unit(3, "lines"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25),
+        plot.margin = unit(c(.1, .1, .1, .1), 'cm'))
+
+```
