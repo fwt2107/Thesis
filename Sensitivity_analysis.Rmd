@@ -166,7 +166,7 @@ ggplot()  +
                aes(x = long,
                    y = lat,
                    group = group),
-               color = 'black',
+               color = 'green',
                fill = NA,
                size = 4) +
   geom_polygon(data = nation_tidied,
